@@ -58,6 +58,7 @@ class PlayerState {
     TrackSettings? settings,
     List<Section>? sections,
     List<double>? waveformData,
+    bool clearWaveform = false,
     bool? isPlaying,
     bool? isLoading,
     Duration? position,
@@ -70,7 +71,7 @@ class PlayerState {
       currentTrack: currentTrack ?? this.currentTrack,
       settings: settings ?? this.settings,
       sections: sections ?? this.sections,
-      waveformData: waveformData ?? this.waveformData,
+      waveformData: clearWaveform ? null : (waveformData ?? this.waveformData),
       isPlaying: isPlaying ?? this.isPlaying,
       isLoading: isLoading ?? this.isLoading,
       position: position ?? this.position,
@@ -142,7 +143,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   Future<void> loadTrack(Track track) async {
-    state = state.copyWith(isLoading: true, currentTrack: track);
+    state = state.copyWith(isLoading: true, currentTrack: track, clearWaveform: true);
 
     try {
       // Load saved settings

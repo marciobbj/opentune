@@ -96,16 +96,20 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                   flex: 5,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: WaveformView(
-                      waveformData: state.waveformData ?? _demoWaveform,
-                      progress: state.progress,
-                      duration: state.duration,
-                      position: state.position,
-                      sections: state.sections,
-                      loopStart: state.settings.loopStart,
-                      loopEnd: state.settings.loopEnd,
-                      loopEnabled: state.settings.loopEnabled,
-                      onSeek: (progress) => notifier.seekToProgress(progress),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 400),
+                      child: WaveformView(
+                        key: ValueKey(state.waveformData),
+                        waveformData: state.waveformData ?? _demoWaveform,
+                        progress: state.progress,
+                        duration: state.duration,
+                        position: state.position,
+                        sections: state.sections,
+                        loopStart: state.settings.loopStart,
+                        loopEnd: state.settings.loopEnd,
+                        loopEnabled: state.settings.loopEnabled,
+                        onSeek: (progress) => notifier.seekToProgress(progress),
+                      ),
                     ),
                   ),
                 ),
@@ -115,16 +119,20 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: Column(
                     children: [
-                      MiniWaveform(
-                        waveformData: state.waveformData ?? _demoWaveform,
-                        progress: state.progress,
-                        duration: state.duration,
-                        sections: state.sections,
-                        loopStart: state.settings.loopStart,
-                        loopEnd: state.settings.loopEnd,
-                        loopEnabled: state.settings.loopEnabled,
-                        onSeek: (progress) =>
-                            notifier.seekToProgress(progress),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 400),
+                        child: MiniWaveform(
+                          key: ValueKey(state.waveformData),
+                          waveformData: state.waveformData ?? _demoWaveform,
+                          progress: state.progress,
+                          duration: state.duration,
+                          sections: state.sections,
+                          loopStart: state.settings.loopStart,
+                          loopEnd: state.settings.loopEnd,
+                          loopEnabled: state.settings.loopEnabled,
+                          onSeek: (progress) =>
+                              notifier.seekToProgress(progress),
+                        ),
                       ),
                       const SizedBox(height: 6),
                       Row(
