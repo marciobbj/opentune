@@ -28,6 +28,11 @@ The built-in library manager allows for the organization of audio files into spe
 ### Dynamic Waveform Visualization
 A real-time waveform display provides a detailed visual map of the audio track. This allows users to identify transients and structural changes in the music, facilitating easier navigation and more accurate marker placement.
 
+## System Requirements
+
+- **Linux** / **Windows** (Optimized for desktop)
+- **FFmpeg**: Required on the host machine for ultra-fast waveform extraction on Desktop platforms (`sudo apt install ffmpeg` on Linux). *Note: Android, iOS, and macOS use native hardware decoders and do not require FFmpeg.*
+
 ## Technology Stack
 
 - Framework: Flutter

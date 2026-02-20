@@ -8,6 +8,7 @@ import '../../domain/entities/track_settings.dart';
 import '../../domain/entities/section.dart';
 import '../../domain/entities/playlist.dart';
 import '../../data/datasources/local_database.dart';
+import '../../core/utils/waveform_extractor.dart';
 
 // ── Audio Player Instance ──
 final audioPlayerProvider = Provider<AudioPlayer>((ref) {
@@ -21,6 +22,7 @@ class PlayerState {
   final Track? currentTrack;
   final TrackSettings settings;
   final List<Section> sections;
+  final List<double>? waveformData;
   final bool isPlaying;
   final bool isLoading;
   final Duration position;
@@ -31,6 +33,7 @@ class PlayerState {
     this.currentTrack,
     this.settings = const TrackSettings(trackId: 0),
     this.sections = const [],
+    this.waveformData,
     this.isPlaying = false,
     this.isLoading = false,
     this.position = Duration.zero,
@@ -47,6 +50,7 @@ class PlayerState {
     Track? currentTrack,
     TrackSettings? settings,
     List<Section>? sections,
+    List<double>? waveformData,
     bool? isPlaying,
     bool? isLoading,
     Duration? position,
@@ -57,6 +61,7 @@ class PlayerState {
       currentTrack: currentTrack ?? this.currentTrack,
       settings: settings ?? this.settings,
       sections: sections ?? this.sections,
+      waveformData: waveformData ?? this.waveformData,
       isPlaying: isPlaying ?? this.isPlaying,
       isLoading: isLoading ?? this.isLoading,
       position: position ?? this.position,
@@ -146,10 +151,14 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         await _player.seek(settings.lastPosition);
       }
 
+      // Extract waveform
+      final waveform = await WaveformExtractor.extract(track.filePath);
+
       state = state.copyWith(
         currentTrack: track,
         settings: settings,
         sections: sections,
+        waveformData: waveform,
         isLoading: false,
         duration: _player.duration ?? Duration.zero,
       );

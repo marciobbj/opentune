@@ -96,7 +96,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: WaveformView(
-                      waveformData: _demoWaveform,
+                      waveformData: state.waveformData ?? _demoWaveform,
                       progress: state.progress,
                       duration: state.duration,
                       position: state.position,
@@ -115,7 +115,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                   child: Column(
                     children: [
                       MiniWaveform(
-                        waveformData: _demoWaveform,
+                        waveformData: state.waveformData ?? _demoWaveform,
                         progress: state.progress,
                         duration: state.duration,
                         sections: state.sections,
