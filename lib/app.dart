@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'core/theme/app_theme.dart';
-import 'presentation/screens/player/player_screen.dart';
+import 'presentation/screens/home/home_screen.dart';
 
 class OpenTuneApp extends StatelessWidget {
   const OpenTuneApp({super.key});
@@ -22,7 +22,7 @@ class OpenTuneApp extends StatelessWidget {
       title: 'OpenTune',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
-      home: const PlayerScreen(),
+      home: const HomeScreen(),
     );
   }
 }

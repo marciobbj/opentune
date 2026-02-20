@@ -42,15 +42,7 @@ class BottomControls extends StatelessWidget {
         top: 12,
       ),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.bgDarkest.withValues(alpha: 0.0),
-            AppColors.bgDarkest.withValues(alpha: 0.95),
-            AppColors.bgDarkest,
-          ],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
+        color: AppColors.bgDarkest.withValues(alpha: 0.95),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,

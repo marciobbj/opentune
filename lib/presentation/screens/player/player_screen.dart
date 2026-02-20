@@ -66,18 +66,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           // Background gradient
           Container(
             decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppColors.bgDarkest,
-                  AppColors.bgDark,
-                  AppColors.bgMedium,
-                  AppColors.bgDark,
-                  AppColors.bgDarkest,
-                ],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                stops: [0.0, 0.2, 0.5, 0.8, 1.0],
-              ),
+              color: AppColors.bgDarkest,
             ),
           ),
 
@@ -1208,7 +1197,7 @@ class _ImportTrackButtonState extends State<_ImportTrackButton>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
           decoration: BoxDecoration(
-            gradient: AppColors.primaryGradient,
+            color: AppColors.primary,
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(

@@ -16,10 +16,10 @@ class AppColors {
   static const Color surfaceLight = Color(0xFF243447);
   static const Color surfaceBorder = Color(0xFF2D3F54);
 
-  // Primary accent — Cyan
-  static const Color primary = Color(0xFF00D4FF);
-  static const Color primaryLight = Color(0xFF5CE1FF);
-  static const Color primaryDark = Color(0xFF0099CC);
+  // Primary accent — Orange
+  static const Color primary = Color(0xFFFF6C08);
+  static const Color primaryLight = Color(0xFFFF9A4D);
+  static const Color primaryDark = Color(0xFFCC5500);
 
   // Secondary accent — Electric Purple
   static const Color secondary = Color(0xFF7C3AED);
@@ -27,7 +27,7 @@ class AppColors {
   static const Color secondaryDark = Color(0xFF5B21B6);
 
   // Waveform
-  static const Color waveformActive = Color(0xFF00D4FF);
+  static const Color waveformActive = Color(0xFFFF6C08);
   static const Color waveformPlayed = Color(0xFF4A5568);
   static const Color waveformInactive = Color(0xFF2D3748);
   static const Color waveformCursor = Color(0xFFFFFFFF);
@@ -64,21 +64,4 @@ class AppColors {
   static const Color warning = Color(0xFFF59E0B);
   static const Color error = Color(0xFFEF4444);
 
-  // Gradients
-  static const LinearGradient primaryGradient = LinearGradient(
-    colors: [primary, secondary],
-    begin: Alignment.centerLeft,
-    end: Alignment.centerRight,
-  );
-
-  static const LinearGradient bgGradient = LinearGradient(
-    colors: [bgDarkest, bgDark, bgMedium],
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-  );
-
-  static const RadialGradient playButtonGlow = RadialGradient(
-    colors: [primaryLight, primary, primaryDark],
-    radius: 0.8,
-  );
 }

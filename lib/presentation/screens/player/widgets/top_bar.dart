@@ -32,15 +32,7 @@ class TopBar extends StatelessWidget {
         bottom: 0,
       ),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.bgDarkest,
-            AppColors.bgDarkest.withValues(alpha: 0.95),
-            AppColors.bgDarkest.withValues(alpha: 0.0),
-          ],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
+        color: AppColors.bgDarkest.withValues(alpha: 0.95),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

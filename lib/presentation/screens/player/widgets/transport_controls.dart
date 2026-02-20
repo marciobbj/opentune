@@ -164,11 +164,7 @@ class _PlayPauseButtonState extends State<_PlayPauseButton>
           height: 64,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: const LinearGradient(
-              colors: [AppColors.primary, AppColors.primaryLight],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: AppColors.primary,
             boxShadow: [
               BoxShadow(
                 color: AppColors.primary.withValues(alpha: 0.4),
