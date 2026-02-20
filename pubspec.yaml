@@ -1,0 +1,40 @@
+name: opentune
+description: "OpenTune - The Music Disassembler"
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.10.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Audio
+  just_audio: ^0.9.43
+  just_audio_media_kit: ^2.1.0
+  media_kit_libs_linux: any
+  file_picker: ^9.2.1
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+
+  # Local Storage
+  path_provider: ^2.1.5
+  sqflite: ^2.4.2
+  sqflite_common_ffi: ^2.3.4+4
+  path: ^1.9.1
+
+  # UI
+  google_fonts: ^6.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/icons/
