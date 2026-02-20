@@ -161,8 +161,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                     onPlayPause: () => notifier.togglePlayPause(),
                     onSkipForward: () => notifier.skipForward(),
                     onSkipBackward: () => notifier.skipBackward(),
-                    onSkipToStart: () => notifier.skipToStart(),
-                    onSkipToEnd: () => notifier.skipToEnd(),
+                    onSkipToStart: () => notifier.skipToPreviousTrack(),
+                    onSkipToEnd: () => notifier.skipToNextTrack(),
                   ),
                 ),
 

@@ -259,7 +259,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                       track: track,
                       index: index + 1,
                       color: color,
-                      onTap: () => _openTrack(track),
+                      onTap: () => _openTrack(track, index),
                       onRemove: () => _removeTrack(track),
                     ),
                   );
@@ -283,15 +283,15 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
   void _playAll() {
     if (_tracks.isEmpty) return;
     final notifier = ref.read(playerProvider.notifier);
-    notifier.loadTrack(_tracks.first);
+    notifier.loadQueue(_tracks);
     // Switch to Player tab
     ref.read(navigationProvider.notifier).state = 1;
     Navigator.pop(context);
   }
 
-  void _openTrack(Track track) {
+  void _openTrack(Track track, int index) {
     final notifier = ref.read(playerProvider.notifier);
-    notifier.loadTrack(track);
+    notifier.loadQueue(_tracks, initialIndex: index);
     // Switch to Player tab
     ref.read(navigationProvider.notifier).state = 1;
     Navigator.pop(context);

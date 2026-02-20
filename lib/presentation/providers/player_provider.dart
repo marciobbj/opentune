@@ -28,6 +28,8 @@ class PlayerState {
   final Duration position;
   final Duration duration;
   final Duration bufferedPosition;
+  final List<Track> queue;
+  final int queueIndex;
 
   const PlayerState({
     this.currentTrack,
@@ -39,12 +41,17 @@ class PlayerState {
     this.position = Duration.zero,
     this.duration = Duration.zero,
     this.bufferedPosition = Duration.zero,
+    this.queue = const [],
+    this.queueIndex = 0,
   });
 
   double get progress =>
       duration.inMilliseconds > 0
           ? position.inMilliseconds / duration.inMilliseconds
           : 0.0;
+
+  bool get hasNext => queue.isNotEmpty && queueIndex < queue.length - 1;
+  bool get hasPrevious => queue.isNotEmpty && queueIndex > 0;
 
   PlayerState copyWith({
     Track? currentTrack,
@@ -56,6 +63,8 @@ class PlayerState {
     Duration? position,
     Duration? duration,
     Duration? bufferedPosition,
+    List<Track>? queue,
+    int? queueIndex,
   }) {
     return PlayerState(
       currentTrack: currentTrack ?? this.currentTrack,
@@ -67,6 +76,8 @@ class PlayerState {
       position: position ?? this.position,
       duration: duration ?? this.duration,
       bufferedPosition: bufferedPosition ?? this.bufferedPosition,
+      queue: queue ?? this.queue,
+      queueIndex: queueIndex ?? this.queueIndex,
     );
   }
 }
@@ -114,6 +125,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
           if (state.settings.loopEnabled && state.settings.hasLoop) {
             _player.seek(state.settings.loopStart!);
             _player.play();
+          } else if (state.hasNext) {
+            skipToNextTrack();
           }
         }
       }),
@@ -165,6 +178,35 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     } catch (e) {
       state = state.copyWith(isLoading: false);
       rethrow;
+    }
+  }
+
+  Future<void> loadQueue(List<Track> queue, {int initialIndex = 0}) async {
+    if (queue.isEmpty) return;
+    state = state.copyWith(queue: queue, queueIndex: initialIndex);
+    await loadTrack(queue[initialIndex]);
+    await play(); // Autoplay when loading a queue
+  }
+
+  Future<void> skipToNextTrack() async {
+    if (state.hasNext) {
+      final nextIndex = state.queueIndex + 1;
+      state = state.copyWith(queueIndex: nextIndex);
+      await loadTrack(state.queue[nextIndex]);
+      await play(); // Autoplay next track
+    }
+  }
+
+  Future<void> skipToPreviousTrack() async {
+    // If the track just started, go to previous track. 
+    // Otherwise, behavior of typical "previous" button is to restart current track.
+    if (state.position.inSeconds > 3 || !state.hasPrevious) {
+      await seek(Duration.zero);
+    } else if (state.hasPrevious) {
+      final prevIndex = state.queueIndex - 1;
+      state = state.copyWith(queueIndex: prevIndex);
+      await loadTrack(state.queue[prevIndex]);
+      await play(); // Autoplay previous track
     }
   }
 
