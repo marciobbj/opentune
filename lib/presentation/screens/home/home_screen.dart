@@ -1,18 +1,22 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../player/player_screen.dart';
 import '../library/library_screen.dart';
+import '../../providers/navigation_provider.dart';
+import '../../providers/player_provider.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  int _currentIndex = 0;
-
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   final _screens = const [
     LibraryScreen(),
     PlayerScreen(),
@@ -20,10 +24,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    final currentIndex = ref.watch(navigationProvider);
+
+    Widget scaffold = Scaffold(
       backgroundColor: AppColors.bgDarkest,
       body: IndexedStack(
-        index: _currentIndex,
+        index: currentIndex,
         children: _screens,
       ),
       bottomNavigationBar: Container(
@@ -37,8 +43,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         child: NavigationBar(
-          selectedIndex: _currentIndex,
-          onDestinationSelected: (i) => setState(() => _currentIndex = i),
+          selectedIndex: currentIndex,
+          onDestinationSelected: (i) => ref.read(navigationProvider.notifier).state = i,
           backgroundColor: Colors.transparent,
           surfaceTintColor: Colors.transparent,
           indicatorColor: AppColors.primary.withValues(alpha: 0.12),
@@ -59,5 +65,30 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+
+    if (!kIsWeb && (Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
+      return Focus(
+        autofocus: true,
+        onKeyEvent: (node, event) {
+          if (event is KeyDownEvent) {
+            final notifier = ref.read(playerProvider.notifier);
+            if (event.logicalKey == LogicalKeyboardKey.space) {
+              notifier.togglePlayPause();
+              return KeyEventResult.handled;
+            } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+              notifier.skipForward(const Duration(seconds: 5));
+              return KeyEventResult.handled;
+            } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+              notifier.skipBackward(const Duration(seconds: 5));
+              return KeyEventResult.handled;
+            }
+          }
+          return KeyEventResult.ignored;
+        },
+        child: scaffold,
+      );
+    }
+
+    return scaffold;
   }
 }

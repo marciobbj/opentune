@@ -7,6 +7,7 @@ import '../../../data/datasources/local_database.dart';
 import '../../../domain/entities/playlist.dart';
 import '../../../domain/entities/track.dart';
 import '../../providers/player_provider.dart';
+import '../../providers/navigation_provider.dart';
 import 'playlist_detail_screen.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
@@ -295,12 +296,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   void _openTrackInPlayer(Track track) {
     final notifier = ref.read(playerProvider.notifier);
     notifier.loadTrack(track);
-    // Switch to Player tab — this is a hack, ideally we'd use a shared controller
-    // Find the HomeScreen ancestor and switch tab
-    final homeState = context.findAncestorStateOfType<State>();
-    if (homeState != null && homeState.mounted) {
-      // We'll navigate using a callback pattern instead
-    }
+    // Switch to Player tab (index 1)
+    ref.read(navigationProvider.notifier).state = 1;
   }
 
   Future<void> _importTrack() async {

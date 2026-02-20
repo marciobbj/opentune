@@ -7,6 +7,7 @@ import '../../../data/datasources/local_database.dart';
 import '../../../domain/entities/playlist.dart';
 import '../../../domain/entities/track.dart';
 import '../../providers/player_provider.dart';
+import '../../providers/navigation_provider.dart';
 
 class PlaylistDetailScreen extends ConsumerStatefulWidget {
   final Playlist playlist;
@@ -14,7 +15,8 @@ class PlaylistDetailScreen extends ConsumerStatefulWidget {
   const PlaylistDetailScreen({super.key, required this.playlist});
 
   @override
-  ConsumerState<PlaylistDetailScreen> createState() => _PlaylistDetailScreenState();
+  ConsumerState<PlaylistDetailScreen> createState() =>
+      _PlaylistDetailScreenState();
 }
 
 class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
@@ -53,8 +55,8 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final color = AppColors.markerColors[
-        (_playlist.id ?? 0) % AppColors.markerColors.length];
+    final color = AppColors
+        .markerColors[(_playlist.id ?? 0) % AppColors.markerColors.length];
 
     return Scaffold(
       backgroundColor: AppColors.bgDarkest,
@@ -73,21 +75,35 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                   color: AppColors.bgDarkest.withValues(alpha: 0.5),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary, size: 20),
+                child: const Icon(
+                  Icons.arrow_back_rounded,
+                  color: AppColors.textPrimary,
+                  size: 20,
+                ),
               ),
             ),
             actions: [
               PopupMenuButton(
-                icon: const Icon(Icons.more_vert_rounded, color: AppColors.textPrimary),
+                icon: const Icon(
+                  Icons.more_vert_rounded,
+                  color: AppColors.textPrimary,
+                ),
                 color: AppColors.bgCard,
                 itemBuilder: (ctx) => [
                   const PopupMenuItem(
                     value: 'add',
                     child: Row(
                       children: [
-                        Icon(Icons.add_rounded, color: AppColors.textSecondary, size: 20),
+                        Icon(
+                          Icons.add_rounded,
+                          color: AppColors.textSecondary,
+                          size: 20,
+                        ),
                         SizedBox(width: 8),
-                        Text('Add Tracks', style: TextStyle(color: AppColors.textPrimary)),
+                        Text(
+                          'Add Tracks',
+                          style: TextStyle(color: AppColors.textPrimary),
+                        ),
                       ],
                     ),
                   ),
@@ -95,9 +111,16 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                     value: 'import',
                     child: Row(
                       children: [
-                        Icon(Icons.file_upload_rounded, color: AppColors.textSecondary, size: 20),
+                        Icon(
+                          Icons.file_upload_rounded,
+                          color: AppColors.textSecondary,
+                          size: 20,
+                        ),
                         SizedBox(width: 8),
-                        Text('Import & Add', style: TextStyle(color: AppColors.textPrimary)),
+                        Text(
+                          'Import & Add',
+                          style: TextStyle(color: AppColors.textPrimary),
+                        ),
                       ],
                     ),
                   ),
@@ -117,9 +140,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                 ),
               ),
               background: Container(
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                ),
+                decoration: BoxDecoration(color: color.withValues(alpha: 0.15)),
                 child: Center(
                   child: Icon(
                     Icons.folder_rounded,
@@ -138,7 +159,10 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                 child: Text(
                   _playlist.description,
-                  style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                  style: const TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ),
@@ -153,14 +177,24 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                   const SizedBox(width: 6),
                   Text(
                     '${_tracks.length} track${_tracks.length != 1 ? "s" : ""}',
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
                   ),
                   const Spacer(),
                   if (_tracks.isNotEmpty)
                     TextButton.icon(
                       onPressed: _playAll,
-                      icon: Icon(Icons.play_arrow_rounded, color: color, size: 18),
-                      label: Text('Play All', style: TextStyle(color: color, fontSize: 13)),
+                      icon: Icon(
+                        Icons.play_arrow_rounded,
+                        color: color,
+                        size: 18,
+                      ),
+                      label: Text(
+                        'Play All',
+                        style: TextStyle(color: color, fontSize: 13),
+                      ),
                     ),
                 ],
               ),
@@ -188,7 +222,10 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                     const SizedBox(height: 16),
                     const Text(
                       'No tracks in this playlist',
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 15),
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 15,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     ElevatedButton.icon(
@@ -247,12 +284,16 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
     if (_tracks.isEmpty) return;
     final notifier = ref.read(playerProvider.notifier);
     notifier.loadTrack(_tracks.first);
+    // Switch to Player tab
+    ref.read(navigationProvider.notifier).state = 1;
+    Navigator.pop(context);
   }
 
   void _openTrack(Track track) {
     final notifier = ref.read(playerProvider.notifier);
     notifier.loadTrack(track);
-    // Pop back and switch to player tab would be ideal
+    // Switch to Player tab
+    ref.read(navigationProvider.notifier).state = 1;
     Navigator.pop(context);
   }
 
@@ -273,7 +314,9 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
   void _showAddExistingTracksDialog() async {
     final allTracks = await LocalDatabase.getAllTracks();
     final existingIds = _playlist.trackIds.toSet();
-    final available = allTracks.where((t) => !existingIds.contains(t.id)).toList();
+    final available = allTracks
+        .where((t) => !existingIds.contains(t.id))
+        .toList();
 
     if (!mounted) return;
 
@@ -296,10 +339,15 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
           builder: (ctx, setDialogState) {
             return AlertDialog(
               backgroundColor: AppColors.bgCard,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               title: const Text(
                 'Add Tracks',
-                style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               content: SizedBox(
                 width: 400,
@@ -322,11 +370,17 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                       },
                       title: Text(
                         track.title,
-                        style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 14,
+                        ),
                       ),
                       subtitle: Text(
                         track.artist,
-                        style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                        style: const TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 12,
+                        ),
                       ),
                       activeColor: AppColors.primary,
                       checkColor: AppColors.bgDarkest,
@@ -341,13 +395,18 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                   child: const Text('Cancel'),
                 ),
                 ElevatedButton(
-                  onPressed: selected.isEmpty ? null : () async {
-                    for (final trackId in selected) {
-                      await LocalDatabase.addTrackToPlaylist(_playlist.id!, trackId);
-                    }
-                    if (ctx.mounted) Navigator.pop(ctx);
-                    _loadTracks();
-                  },
+                  onPressed: selected.isEmpty
+                      ? null
+                      : () async {
+                          for (final trackId in selected) {
+                            await LocalDatabase.addTrackToPlaylist(
+                              _playlist.id!,
+                              trackId,
+                            );
+                          }
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          _loadTracks();
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: AppColors.bgDarkest,
@@ -369,7 +428,17 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['mp3', 'flac', 'wav', 'ogg', 'aac', 'm4a', 'opus', 'wma', 'aiff'],
+        allowedExtensions: [
+          'mp3',
+          'flac',
+          'wav',
+          'ogg',
+          'aac',
+          'm4a',
+          'opus',
+          'wma',
+          'aiff',
+        ],
         dialogTitle: 'Import & add to playlist',
         allowMultiple: true,
       );
@@ -407,7 +476,10 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     }

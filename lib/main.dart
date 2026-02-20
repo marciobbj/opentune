@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
+import 'package:media_kit/media_kit.dart';
 import 'package:path_provider/path_provider.dart';
 import 'app.dart';
 
@@ -15,22 +16,26 @@ void main() async {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
 
-    // Ensure cache directory exists for MPV (fixes release build segfault)
+    // Ensure cache and temp directories exist for MPV (fixes file cache errors and segfaults)
     try {
       final cacheDir = await getApplicationCacheDirectory();
       final mpvCacheDir = Directory('${cacheDir.path}/mpv');
       if (!await mpvCacheDir.exists()) {
         await mpvCacheDir.create(recursive: true);
       }
+      
+      // Set TMPDIR to the app's cache directory so MPV has a reliable place for lavf cache
+      Platform.environment['TMPDIR'] = mpvCacheDir.path;
     } catch (_) {
-      // Ignore cache dir creation failures
+      // Ignore directory creation failures
     }
   }
 
-  // Initialize MediaKit for desktop audio playback (FLAC, MP3, WAV, OGG, AAC, etc.)
+  // Initialize MediaKit for desktop audio playback
   JustAudioMediaKit.ensureInitialized();
-  // Reduce buffer to avoid file cache issues in release builds
-  JustAudioMediaKit.bufferSize = 2 * 1024 * 1024;
+  // Set buffer size and ignore minor lavf cache errors in logs
+  JustAudioMediaKit.bufferSize = 1 * 1024 * 1024;
+  JustAudioMediaKit.mpvLogLevel = MPVLogLevel.warn;
 
   runApp(
     const ProviderScope(
