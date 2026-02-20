@@ -70,16 +70,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return Focus(
         autofocus: true,
         onKeyEvent: (node, event) {
-          if (event is KeyDownEvent) {
+          if (event is KeyDownEvent || event is KeyRepeatEvent) {
             final notifier = ref.read(playerProvider.notifier);
-            if (event.logicalKey == LogicalKeyboardKey.space) {
+            
+            if (event.logicalKey == LogicalKeyboardKey.space && event is KeyDownEvent) {
               notifier.togglePlayPause();
               return KeyEventResult.handled;
             } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-              notifier.skipForward(const Duration(seconds: 5));
+              notifier.skipForward(const Duration(seconds: 1));
               return KeyEventResult.handled;
             } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-              notifier.skipBackward(const Duration(seconds: 5));
+              notifier.skipBackward(const Duration(seconds: 1));
               return KeyEventResult.handled;
             }
           }

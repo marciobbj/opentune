@@ -7,6 +7,7 @@ import '../../../domain/entities/track.dart';
 import '../../../domain/entities/section.dart';
 import '../../../data/datasources/local_database.dart';
 import '../../providers/player_provider.dart';
+import '../../providers/navigation_provider.dart';
 import 'widgets/waveform_view.dart';
 import 'widgets/transport_controls.dart';
 import 'widgets/top_bar.dart';
@@ -87,7 +88,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                   duration: state.duration,
                   position: state.position,
                   sections: state.sections,
-                  onBackPressed: () => Navigator.of(context).maybePop(),
+                  onBackPressed: () => ref.read(navigationProvider.notifier).state = 0,
                 ),
 
                 // Main waveform
