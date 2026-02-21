@@ -142,6 +142,20 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     }
   }
 
+  void updateCurrentTrackMetadata(Track updatedTrack) {
+    if (state.currentTrack?.id == updatedTrack.id) {
+      state = state.copyWith(currentTrack: updatedTrack);
+    }
+    
+    // Also update in queue if exists
+    final qIndex = state.queue.indexWhere((t) => t.id == updatedTrack.id);
+    if (qIndex != -1) {
+      final newQueue = List<Track>.from(state.queue);
+      newQueue[qIndex] = updatedTrack;
+      state = state.copyWith(queue: newQueue);
+    }
+  }
+
   Future<void> loadTrack(Track track) async {
     state = state.copyWith(isLoading: true, currentTrack: track, clearWaveform: true);
 

@@ -8,6 +8,7 @@ import '../../../domain/entities/playlist.dart';
 import '../../../domain/entities/track.dart';
 import '../../providers/player_provider.dart';
 import '../../providers/navigation_provider.dart';
+import '../../shared/edit_track_dialog.dart';
 import 'playlist_detail_screen.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
@@ -31,13 +32,60 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     final playlists = await LocalDatabase.getAllPlaylists();
-    final tracks = await LocalDatabase.getAllTracks();
+    final rawTracks = await LocalDatabase.getAllTracks();
+
+    final validTracks = <Track>[];
+    for (final track in rawTracks) {
+      if (!File(track.filePath).existsSync()) {
+        await LocalDatabase.deleteTrack(track.id!);
+      } else {
+        validTracks.add(track);
+      }
+    }
+
     if (mounted) {
       setState(() {
         _playlists = playlists;
-        _allTracks = tracks;
+        _allTracks = validTracks;
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _removeTrackFromLibrary(Track track) async {
+    // Delete from database
+    await LocalDatabase.deleteTrack(track.id!);
+    // Refresh data
+    await _loadData();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Removed "${track.title}" from library'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    }
+  }
+
+  Future<void> _editTrackMetadata(Track track) async {
+    final updatedTrack = await showDialog<Track>(
+      context: context,
+      builder: (ctx) => EditTrackDialog(track: track),
+    );
+
+    if (updatedTrack != null) {
+      await LocalDatabase.updateTrack(updatedTrack);
+      await _loadData();
+      ref.read(playerProvider.notifier).updateCurrentTrackMetadata(updatedTrack);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Track updated'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
     }
   }
 
@@ -196,6 +244,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   track: _allTracks[index],
                   onTap: () => _openTrackInPlayer(_allTracks[index]),
                   onAddToPlaylist: () => _showAddToPlaylistDialog(_allTracks[index]),
+                  onEditTrack: () => _editTrackMetadata(_allTracks[index]),
+                  onRemoveFromLibrary: () => _removeTrackFromLibrary(_allTracks[index]),
                 ),
                 childCount: _allTracks.length,
               ),
@@ -756,11 +806,15 @@ class _TrackTile extends StatelessWidget {
   final Track track;
   final VoidCallback? onTap;
   final VoidCallback? onAddToPlaylist;
+  final VoidCallback? onEditTrack;
+  final VoidCallback? onRemoveFromLibrary;
 
   const _TrackTile({
     required this.track,
     this.onTap,
     this.onAddToPlaylist,
+    this.onEditTrack,
+    this.onRemoveFromLibrary,
   });
 
   @override
@@ -820,14 +874,33 @@ class _TrackTile extends StatelessWidget {
                     ],
                   ),
                 ),
-                IconButton(
-                  onPressed: onAddToPlaylist,
+                PopupMenuButton<String>(
                   icon: const Icon(
-                    Icons.playlist_add_rounded,
+                    Icons.more_vert_rounded,
                     color: AppColors.textMuted,
-                    size: 22,
+                    size: 20,
                   ),
-                  tooltip: 'Add to playlist',
+                  color: AppColors.bgCard,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  onSelected: (value) {
+                    if (value == 'add') onAddToPlaylist?.call();
+                    if (value == 'edit') onEditTrack?.call();
+                    if (value == 'remove') onRemoveFromLibrary?.call();
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'add',
+                      child: Text('Add to playlist', style: TextStyle(color: AppColors.textPrimary)),
+                    ),
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Text('Edit metadata', style: TextStyle(color: AppColors.textPrimary)),
+                    ),
+                    const PopupMenuItem(
+                      value: 'remove',
+                      child: Text('Remove from library', style: TextStyle(color: AppColors.error)),
+                    ),
+                  ],
                 ),
               ],
             ),

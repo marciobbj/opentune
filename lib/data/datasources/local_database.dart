@@ -118,6 +118,16 @@ class LocalDatabase {
     return Track.fromMap(maps.first);
   }
 
+  static Future<void> updateTrack(Track track) async {
+    final db = await database;
+    await db.update(
+      'tracks',
+      track.toMap(),
+      where: 'id = ?',
+      whereArgs: [track.id],
+    );
+  }
+
   static Future<void> deleteTrack(int id) async {
     final db = await database;
     await db.delete('tracks', where: 'id = ?', whereArgs: [id]);

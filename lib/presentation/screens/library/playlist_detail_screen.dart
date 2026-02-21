@@ -9,6 +9,8 @@ import '../../../domain/entities/track.dart';
 import '../../providers/player_provider.dart';
 import '../../providers/navigation_provider.dart';
 
+import '../../shared/edit_track_dialog.dart';
+
 class PlaylistDetailScreen extends ConsumerStatefulWidget {
   final Playlist playlist;
 
@@ -260,6 +262,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                       index: index + 1,
                       color: color,
                       onTap: () => _openTrack(track, index),
+                      onEdit: () => _editTrackMetadata(track),
                       onRemove: () => _removeTrack(track),
                     ),
                   );
@@ -300,6 +303,28 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
   Future<void> _removeTrack(Track track) async {
     await LocalDatabase.removeTrackFromPlaylist(_playlist.id!, track.id!);
     _loadTracks();
+  }
+
+  Future<void> _editTrackMetadata(Track track) async {
+    final updatedTrack = await showDialog<Track>(
+      context: context,
+      builder: (ctx) => EditTrackDialog(track: track),
+    );
+
+    if (updatedTrack != null) {
+      await LocalDatabase.updateTrack(updatedTrack);
+      await _loadTracks();
+      ref.read(playerProvider.notifier).updateCurrentTrackMetadata(updatedTrack);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Track metadata updated'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    }
   }
 
   void _onReorder(int oldIndex, int newIndex) {
@@ -493,6 +518,7 @@ class _PlaylistTrackTile extends StatelessWidget {
   final int index;
   final Color color;
   final VoidCallback? onTap;
+  final VoidCallback? onEdit;
   final VoidCallback? onRemove;
 
   const _PlaylistTrackTile({
@@ -500,6 +526,7 @@ class _PlaylistTrackTile extends StatelessWidget {
     required this.index,
     required this.color,
     this.onTap,
+    this.onEdit,
     this.onRemove,
   });
 
@@ -563,22 +590,34 @@ class _PlaylistTrackTile extends StatelessWidget {
                   ),
                 ),
 
-                // Reorder handle
+                // Drag & More logic
                 const Icon(
                   Icons.drag_handle_rounded,
                   color: AppColors.textDisabled,
                   size: 20,
                 ),
-
-                // Remove
-                IconButton(
-                  onPressed: onRemove,
-                  icon: Icon(
-                    Icons.remove_circle_outline_rounded,
-                    color: AppColors.textMuted.withValues(alpha: 0.5),
+                PopupMenuButton<String>(
+                  icon: const Icon(
+                    Icons.more_vert_rounded,
+                    color: AppColors.textMuted,
                     size: 20,
                   ),
-                  tooltip: 'Remove from playlist',
+                  color: AppColors.bgCard,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  onSelected: (value) {
+                    if (value == 'edit') onEdit?.call();
+                    if (value == 'remove') onRemove?.call();
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Text('Edit metadata', style: TextStyle(color: AppColors.textPrimary)),
+                    ),
+                    const PopupMenuItem(
+                      value: 'remove',
+                      child: Text('Remove from playlist', style: TextStyle(color: AppColors.warning)),
+                    ),
+                  ],
                 ),
               ],
             ),
