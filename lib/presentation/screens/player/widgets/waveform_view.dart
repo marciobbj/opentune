@@ -14,12 +14,18 @@ class WaveformPainter extends CustomPainter {
   final bool loopEnabled;
   final double zoomLevel;
   final double scrollOffset;
+  final Color primaryColor;
+  final Color mutedColor;
+  final Color inactiveColor;
 
   WaveformPainter({
     required this.waveformData,
     required this.progress,
     required this.duration,
     required this.sections,
+    required this.primaryColor,
+    required this.mutedColor,
+    required this.inactiveColor,
     this.loopStart,
     this.loopEnd,
     this.loopEnabled = false,
@@ -89,8 +95,8 @@ class WaveformPainter extends CustomPainter {
     // Loop region background
     final bgPaint = Paint()
       ..color = loopEnabled
-          ? AppColors.primary.withValues(alpha: 0.08)
-          : AppColors.textMuted.withValues(alpha: 0.05)
+          ? primaryColor.withValues(alpha: 0.08)
+          : mutedColor.withValues(alpha: 0.05)
       ..style = PaintingStyle.fill;
 
     canvas.drawRect(
@@ -100,7 +106,7 @@ class WaveformPainter extends CustomPainter {
 
     // Loop boundary lines
     final linePaint = Paint()
-      ..color = loopEnabled ? AppColors.primary : AppColors.textMuted
+      ..color = loopEnabled ? primaryColor : mutedColor
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke;
 
@@ -108,8 +114,8 @@ class WaveformPainter extends CustomPainter {
     canvas.drawLine(Offset(endX, 0), Offset(endX, size.height), linePaint);
 
     // Draw A/B labels
-    _drawMarkerLabel(canvas, startX, 'A', loopEnabled ? AppColors.primary : AppColors.textMuted);
-    _drawMarkerLabel(canvas, endX, 'B', loopEnabled ? AppColors.primary : AppColors.textMuted);
+    _drawMarkerLabel(canvas, startX, 'A', loopEnabled ? primaryColor : mutedColor);
+    _drawMarkerLabel(canvas, endX, 'B', loopEnabled ? primaryColor : mutedColor);
   }
 
   void _drawMarkerLabel(Canvas canvas, double x, String label, Color color) {
@@ -160,13 +166,13 @@ class WaveformPainter extends CustomPainter {
         // Played portion — gradient from cyan to purple
         final t = barProgress / math.max(progress, 0.001);
         color = Color.lerp(
-          AppColors.primaryDark,
-          AppColors.primary,
+          Color.alphaBlend(Colors.black.withValues(alpha: 0.3), primaryColor),
+          primaryColor,
           t,
         )!;
       } else {
         // Unplayed portion
-        color = AppColors.waveformInactive;
+        color = inactiveColor;
       }
 
       final paint = Paint()
@@ -188,7 +194,7 @@ class WaveformPainter extends CustomPainter {
 
     // Glow effect
     final glowPaint = Paint()
-      ..color = AppColors.primary.withValues(alpha: 0.3)
+      ..color = primaryColor.withValues(alpha: 0.3)
       ..strokeWidth = 4.0
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0);
 
@@ -298,10 +304,10 @@ class _WaveformViewState extends State<WaveformView>
             width: constraints.maxWidth,
             height: constraints.maxHeight,
             decoration: BoxDecoration(
-              color: AppColors.bgDark,
+              color: context.colors.bgDark,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: AppColors.surfaceBorder.withValues(alpha: 0.3),
+                color: context.colors.surfaceBorder.withValues(alpha: 0.3),
                 width: 0.5,
               ),
             ),
@@ -313,6 +319,9 @@ class _WaveformViewState extends State<WaveformView>
                   progress: widget.progress,
                   duration: widget.duration,
                   sections: widget.sections,
+                  primaryColor: Theme.of(context).colorScheme.primary,
+                  mutedColor: context.colors.textMuted,
+                  inactiveColor: context.colors.waveformInactive,
                   loopStart: widget.loopStart,
                   loopEnd: widget.loopEnd,
                   loopEnabled: widget.loopEnabled,

@@ -5,13 +5,135 @@ import 'app_colors.dart';
 class AppTheme {
   AppTheme._();
 
-  static ThemeData get darkTheme {
+  static ThemeData lightTheme({Color? customPrimary}) {
+    final primary = customPrimary ?? AppColors.primary;
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+      scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+      colorScheme: ColorScheme.light(
+        primary: primary,
+        secondary: AppColors.secondary,
+        surface: Colors.white,
+        error: AppColors.error,
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
+        onSurface: const Color(0xFF0F172A),
+        onError: Colors.white,
+      ),
+      textTheme: GoogleFonts.interTextTheme(
+        TextTheme(
+          displayLarge: const TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF0F172A),
+            letterSpacing: -0.5,
+          ),
+          displayMedium: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF0F172A),
+            letterSpacing: -0.3,
+          ),
+          titleLarge: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF0F172A),
+          ),
+          titleMedium: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF0F172A),
+          ),
+          titleSmall: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF475569),
+          ),
+          bodyLarge: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w400,
+            color: Color(0xFF0F172A),
+          ),
+          bodyMedium: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            color: Color(0xFF334155),
+          ),
+          bodySmall: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w400,
+            color: Color(0xFF64748B),
+          ),
+          labelLarge: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: primary,
+          ),
+          labelMedium: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF475569),
+          ),
+          labelSmall: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF64748B),
+            letterSpacing: 0.5,
+          ),
+        ),
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        titleTextStyle: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF0F172A),
+        ),
+        iconTheme: IconThemeData(color: Color(0xFF0F172A)),
+      ),
+      iconTheme: const IconThemeData(
+        color: Color(0xFF475569),
+        size: 24,
+      ),
+      sliderTheme: SliderThemeData(
+        activeTrackColor: primary,
+        inactiveTrackColor: const Color(0xFFE2E8F0),
+        thumbColor: primary,
+        overlayColor: primary.withValues(alpha: 0.12),
+        trackHeight: 3,
+        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+      ),
+      cardTheme: CardThemeData(
+        color: Colors.white,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFFE2E8F0), width: 0.5),
+        ),
+      ),
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: Colors.white,
+        selectedItemColor: primary,
+        unselectedItemColor: const Color(0xFF64748B),
+        type: BottomNavigationBarType.fixed,
+        elevation: 0,
+      ),
+    );
+  }
+
+  static ThemeData darkTheme({Color? customPrimary}) {
+    final primary = customPrimary ?? AppColors.primary;
+    final primaryLight = customPrimary != null ? Color.alphaBlend(Colors.white.withValues(alpha: 0.3), customPrimary) : AppColors.primaryLight;
+    final primaryDark = customPrimary != null ? Color.alphaBlend(Colors.black.withValues(alpha: 0.3), customPrimary) : AppColors.primaryDark;
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
       scaffoldBackgroundColor: AppColors.bgDarkest,
-      colorScheme: const ColorScheme.dark(
-        primary: AppColors.primary,
+      colorScheme: ColorScheme.dark(
+        primary: primary,
         secondary: AppColors.secondary,
         surface: AppColors.surface,
         error: AppColors.error,
@@ -21,7 +143,7 @@ class AppTheme {
         onError: AppColors.textPrimary,
       ),
       textTheme: GoogleFonts.interTextTheme(
-        const TextTheme(
+        TextTheme(
           displayLarge: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.w700,
@@ -67,7 +189,7 @@ class AppTheme {
           labelLarge: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: AppColors.primary,
+            color: primary,
           ),
           labelMedium: TextStyle(
             fontSize: 12,
@@ -98,10 +220,10 @@ class AppTheme {
         size: 24,
       ),
       sliderTheme: SliderThemeData(
-        activeTrackColor: AppColors.primary,
+        activeTrackColor: primary,
         inactiveTrackColor: AppColors.surfaceBorder,
-        thumbColor: AppColors.primary,
-        overlayColor: AppColors.primary.withValues(alpha: 0.12),
+        thumbColor: primary,
+        overlayColor: primary.withValues(alpha: 0.12),
         trackHeight: 3,
         thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
       ),
@@ -113,9 +235,9 @@ class AppTheme {
           side: const BorderSide(color: AppColors.surfaceBorder, width: 0.5),
         ),
       ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: AppColors.bgDark,
-        selectedItemColor: AppColors.primary,
+        selectedItemColor: primary,
         unselectedItemColor: AppColors.textMuted,
         type: BottomNavigationBarType.fixed,
         elevation: 0,

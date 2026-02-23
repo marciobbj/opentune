@@ -61,13 +61,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     final notifier = ref.read(playerProvider.notifier);
 
     return Scaffold(
-      backgroundColor: AppColors.bgDarkest,
+      backgroundColor: context.colors.bgDarkest,
       body: Stack(
         children: [
           // Background gradient
           Container(
-            decoration: const BoxDecoration(
-              color: AppColors.bgDarkest,
+            decoration: BoxDecoration(
+              color: context.colors.bgDarkest,
             ),
           ),
 
@@ -140,16 +140,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                         children: [
                           Text(
                             _formatDuration(state.position),
-                            style: const TextStyle(
-                              color: AppColors.textMuted,
+                            style: TextStyle(
+                              color: context.colors.textMuted,
                               fontSize: 12,
                               fontFeatures: [FontFeature.tabularFigures()],
                             ),
                           ),
                           Text(
                             '-${_formatDuration(state.duration - state.position)}',
-                            style: const TextStyle(
-                              color: AppColors.textMuted,
+                            style: TextStyle(
+                              color: context.colors.textMuted,
                               fontSize: 12,
                               fontFeatures: [FontFeature.tabularFigures()],
                             ),
@@ -235,7 +235,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.bgCard,
+      backgroundColor: context.colors.bgCard,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -280,19 +280,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                       width: 40,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: AppColors.surfaceBorder,
+                        color: context.colors.surfaceBorder,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                     const SizedBox(height: 16),
 
                     // Title
-                    const Align(
+                    Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
                         'Loop Mode',
                         style: TextStyle(
-                          color: AppColors.textPrimary,
+                          color: context.colors.textPrimary,
                           fontSize: 20,
                           fontWeight: FontWeight.w600,
                         ),
@@ -306,7 +306,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                       label: 'Off',
                       subtitle: 'No loop',
                       isActive: !loopEnabled,
-                      color: AppColors.textMuted,
+                      color: context.colors.textMuted,
                       onTap: () {
                         notifier.clearLoop();
                         Navigator.pop(ctx);
@@ -329,12 +329,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                     // Sections
                     if (currentState.sections.isNotEmpty) ...[
                       const SizedBox(height: 8),
-                      const Align(
+                      Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
                           'SECTIONS',
                           style: TextStyle(
-                            color: AppColors.textMuted,
+                            color: context.colors.textMuted,
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
                             letterSpacing: 1.2,
@@ -398,11 +398,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
             return AlertDialog(
-              backgroundColor: AppColors.bgCard,
+              backgroundColor: context.colors.bgCard,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: const Text(
+              title: Text(
                 'Custom Loop Range',
-                style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+                style: TextStyle(color: context.colors.textPrimary, fontWeight: FontWeight.w600),
               ),
               content: SizedBox(
                 width: 400,
@@ -458,7 +458,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                     Center(
                       child: Text(
                         'Loop duration: ${_formatDurationPrecise(Duration(milliseconds: (endMs - startMs).round()))}',
-                        style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                        style: TextStyle(color: context.colors.textMuted, fontSize: 11),
                       ),
                     ),
                   ],
@@ -479,7 +479,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.markerOrange,
-                    foregroundColor: AppColors.bgDarkest,
+                    foregroundColor: context.colors.bgDarkest,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -499,7 +499,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.bgCard,
+      backgroundColor: context.colors.bgCard,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -522,7 +522,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                       width: 40,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: AppColors.surfaceBorder,
+                        color: context.colors.surfaceBorder,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -532,10 +532,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
+                        Text(
                           'Sections',
                           style: TextStyle(
-                            color: AppColors.textPrimary,
+                            color: context.colors.textPrimary,
                             fontSize: 20,
                             fontWeight: FontWeight.w600,
                           ),
@@ -548,12 +548,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                           icon: Container(
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.15),
+                              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.add_rounded,
-                              color: AppColors.primary,
+                              color: Theme.of(context).colorScheme.primary,
                               size: 20,
                             ),
                           ),
@@ -569,19 +569,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                           children: [
                             Icon(
                               Icons.bookmarks_outlined,
-                              color: AppColors.textMuted.withValues(alpha: 0.5),
+                              color: context.colors.textMuted.withValues(alpha: 0.5),
                               size: 40,
                             ),
                             const SizedBox(height: 12),
-                            const Text(
+                            Text(
                               'No sections yet',
-                              style: TextStyle(color: AppColors.textMuted, fontSize: 14),
+                              style: TextStyle(color: context.colors.textMuted, fontSize: 14),
                             ),
                             const SizedBox(height: 4),
-                            const Text(
+                            Text(
                               'Add sections to mark parts of the song\n(Verse, Chorus, Solo, etc.)',
                               textAlign: TextAlign.center,
-                              style: TextStyle(color: AppColors.textDisabled, fontSize: 12),
+                              style: TextStyle(color: context.colors.textDisabled, fontSize: 12),
                             ),
                           ],
                         ),
@@ -631,8 +631,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                         icon: const Icon(Icons.add_rounded),
                         label: const Text('Add Section'),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.primary,
-                          side: BorderSide(color: AppColors.primary.withValues(alpha: 0.4)),
+                          foregroundColor: Theme.of(context).colorScheme.primary,
+                          side: BorderSide(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4)),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -696,12 +696,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
     int selectedColorIndex = 0;
     if (existingSection != null) {
-      final idx = AppColors.markerColors.indexWhere(
+      final idx = context.colors.markerColors.indexWhere(
         (c) => c.toARGB32() == existingSection.color.toARGB32(),
       );
       selectedColorIndex = idx >= 0 ? idx : 0;
     } else {
-      selectedColorIndex = state.sections.length % AppColors.markerColors.length;
+      selectedColorIndex = state.sections.length % context.colors.markerColors.length;
     }
 
     final sectionLabels = ['Intro', 'Verse', 'Pre-Chorus', 'Chorus', 'Bridge', 'Solo', 'Outro', 'Riff', 'Break'];
@@ -712,11 +712,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
             return AlertDialog(
-              backgroundColor: AppColors.bgCard,
+              backgroundColor: context.colors.bgCard,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               title: Text(
                 title,
-                style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+                style: TextStyle(color: context.colors.textPrimary, fontWeight: FontWeight.w600),
               ),
               content: SizedBox(
                 width: 400,
@@ -729,14 +729,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                       TextField(
                         controller: nameController,
                         autofocus: true,
-                        style: const TextStyle(color: AppColors.textPrimary),
+                        style: TextStyle(color: context.colors.textPrimary),
                         decoration: InputDecoration(
                           labelText: 'Section Name',
-                          labelStyle: const TextStyle(color: AppColors.textMuted),
+                          labelStyle: TextStyle(color: context.colors.textMuted),
                           hintText: 'e.g. Verse 1, Chorus, Solo...',
-                          hintStyle: TextStyle(color: AppColors.textMuted.withValues(alpha: 0.5)),
+                          hintStyle: TextStyle(color: context.colors.textMuted.withValues(alpha: 0.5)),
                           filled: true,
-                          fillColor: AppColors.bgDark,
+                          fillColor: context.colors.bgDark,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                             borderSide: BorderSide.none,
@@ -759,20 +759,20 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
-                                color: AppColors.bgMedium,
+                                color: context.colors.bgMedium,
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
                                   color: nameController.text == label
-                                      ? AppColors.primary.withValues(alpha: 0.5)
-                                      : AppColors.surfaceBorder.withValues(alpha: 0.3),
+                                      ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)
+                                      : context.colors.surfaceBorder.withValues(alpha: 0.3),
                                 ),
                               ),
                               child: Text(
                                 label,
                                 style: TextStyle(
                                   color: nameController.text == label
-                                      ? AppColors.primary
-                                      : AppColors.textSecondary,
+                                      ? Theme.of(context).colorScheme.primary
+                                      : context.colors.textSecondary,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -785,14 +785,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                       const SizedBox(height: 20),
 
                       // Color picker
-                      const Text(
+                      Text(
                         'Color',
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                        style: TextStyle(color: context.colors.textSecondary, fontSize: 12),
                       ),
                       const SizedBox(height: 8),
                       Row(
                         children: List.generate(
-                          AppColors.markerColors.length,
+                          context.colors.markerColors.length,
                           (i) => GestureDetector(
                             onTap: () => setDialogState(() => selectedColorIndex = i),
                             child: Container(
@@ -800,14 +800,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                               height: 28,
                               margin: const EdgeInsets.only(right: 6),
                               decoration: BoxDecoration(
-                                color: AppColors.markerColors[i],
+                                color: context.colors.markerColors[i],
                                 shape: BoxShape.circle,
                                 border: selectedColorIndex == i
                                     ? Border.all(color: Colors.white, width: 2.5)
                                     : null,
                                 boxShadow: selectedColorIndex == i
                                     ? [BoxShadow(
-                                        color: AppColors.markerColors[i].withValues(alpha: 0.4),
+                                        color: context.colors.markerColors[i].withValues(alpha: 0.4),
                                         blurRadius: 8,
                                       )]
                                     : null,
@@ -824,7 +824,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                         label: 'Start',
                         durationMs: startMs,
                         totalMs: totalMs,
-                        color: AppColors.markerColors[selectedColorIndex],
+                        color: context.colors.markerColors[selectedColorIndex],
                         onSliderChanged: (v) {
                           setDialogState(() {
                             startMs = v;
@@ -850,7 +850,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                         label: 'End',
                         durationMs: endMs,
                         totalMs: totalMs,
-                        color: AppColors.markerColors[selectedColorIndex],
+                        color: context.colors.markerColors[selectedColorIndex],
                         onSliderChanged: (v) {
                           setDialogState(() {
                             endMs = v;
@@ -875,7 +875,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                       Center(
                         child: Text(
                           'Duration: ${_formatDurationPrecise(Duration(milliseconds: (endMs - startMs).round()))}',
-                          style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                          style: TextStyle(color: context.colors.textMuted, fontSize: 11),
                         ),
                       ),
                     ],
@@ -899,7 +899,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                           label: name,
                           startTime: Duration(milliseconds: startMs.round()),
                           endTime: Duration(milliseconds: endMs.round()),
-                          color: AppColors.markerColors[selectedColorIndex],
+                          color: context.colors.markerColors[selectedColorIndex],
                         ),
                       );
                     } else {
@@ -908,14 +908,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                         name,
                         Duration(milliseconds: startMs.round()),
                         Duration(milliseconds: endMs.round()),
-                        AppColors.markerColors[selectedColorIndex].toARGB32(),
+                        context.colors.markerColors[selectedColorIndex].toARGB32(),
                       );
                     }
                     if (ctx.mounted) Navigator.pop(ctx);
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.bgDarkest,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: context.colors.bgDarkest,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -942,10 +942,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.bgCard.withValues(alpha: 0.8),
+        color: context.colors.bgCard.withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppColors.surfaceBorder.withValues(alpha: 0.3),
+          color: context.colors.surfaceBorder.withValues(alpha: 0.3),
         ),
       ),
       child: child,
@@ -955,7 +955,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   void _showImportDialog(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.bgCard,
+      backgroundColor: context.colors.bgCard,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -970,31 +970,31 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceBorder,
+                    color: context.colors.surfaceBorder,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
                 const SizedBox(height: 24),
-                const Icon(
+                Icon(
                   Icons.library_music_rounded,
-                  color: AppColors.primary,
+                  color: Theme.of(context).colorScheme.primary,
                   size: 48,
                 ),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'Import a Track',
                   style: TextStyle(
-                    color: AppColors.textPrimary,
+                    color: context.colors.textPrimary,
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Select an audio file to start practicing.\nSupported formats: MP3, WAV, FLAC, AAC, OGG',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: AppColors.textMuted,
+                    color: context.colors.textMuted,
                     fontSize: 14,
                   ),
                 ),
@@ -1009,8 +1009,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                     icon: const Icon(Icons.folder_open_rounded),
                     label: const Text('Browse Files'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.bgDarkest,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: context.colors.bgDarkest,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -1041,9 +1041,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       if (!await file.exists()) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text('File not found. Please check the path.'),
-              backgroundColor: AppColors.error,
+              backgroundColor: context.colors.error,
             ),
           );
         }
@@ -1058,7 +1058,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error importing track: $e'),
-            backgroundColor: AppColors.error,
+            backgroundColor: context.colors.error,
           ),
         );
       }
@@ -1086,20 +1086,20 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       builder: (context) {
         final controller = TextEditingController();
         return AlertDialog(
-          backgroundColor: AppColors.bgCard,
-          title: const Text(
+          backgroundColor: context.colors.bgCard,
+          title: Text(
             'Enter audio file path',
-            style: TextStyle(color: AppColors.textPrimary),
+            style: TextStyle(color: context.colors.textPrimary),
           ),
           content: TextField(
             controller: controller,
             autofocus: true,
-            style: const TextStyle(color: AppColors.textPrimary),
+            style: TextStyle(color: context.colors.textPrimary),
             decoration: InputDecoration(
               hintText: '/path/to/audio.flac',
-              hintStyle: const TextStyle(color: AppColors.textMuted),
+              hintStyle: TextStyle(color: context.colors.textMuted),
               filled: true,
-              fillColor: AppColors.bgDark,
+              fillColor: context.colors.bgDark,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide.none,
@@ -1121,8 +1121,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                 Navigator.pop(context);
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.bgDarkest,
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: context.colors.bgDarkest,
               ),
               child: const Text('Load'),
             ),
@@ -1206,25 +1206,25 @@ class _ImportTrackButtonState extends State<_ImportTrackButton>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
           decoration: BoxDecoration(
-            color: AppColors.primary,
+            color: Theme.of(context).colorScheme.primary,
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.3),
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
                 blurRadius: 24,
                 spreadRadius: 4,
               ),
             ],
           ),
-          child: const Row(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.add_rounded, color: AppColors.bgDarkest, size: 24),
+              Icon(Icons.add_rounded, color: context.colors.bgDarkest, size: 24),
               SizedBox(width: 8),
               Text(
                 'Import Track',
                 style: TextStyle(
-                  color: AppColors.bgDarkest,
+                  color: context.colors.bgDarkest,
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1302,12 +1302,12 @@ class _SectionTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: isActive
             ? section.color.withValues(alpha: 0.1)
-            : AppColors.bgMedium.withValues(alpha: 0.5),
+            : context.colors.bgMedium.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isActive
               ? section.color.withValues(alpha: 0.4)
-              : AppColors.surfaceBorder.withValues(alpha: 0.2),
+              : context.colors.surfaceBorder.withValues(alpha: 0.2),
           width: isActive ? 1.5 : 0.5,
         ),
       ),
@@ -1339,7 +1339,7 @@ class _SectionTile extends StatelessWidget {
                       Text(
                         section.label,
                         style: TextStyle(
-                          color: isActive ? section.color : AppColors.textPrimary,
+                          color: isActive ? section.color : context.colors.textPrimary,
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1347,8 +1347,8 @@ class _SectionTile extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         '${_formatTime(section.startTime)} → ${_formatTime(section.endTime)}',
-                        style: const TextStyle(
-                          color: AppColors.textMuted,
+                        style: TextStyle(
+                          color: context.colors.textMuted,
                           fontSize: 11,
                           fontFeatures: [FontFeature.tabularFigures()],
                         ),
@@ -1362,7 +1362,7 @@ class _SectionTile extends StatelessWidget {
                   onPressed: onEdit,
                   icon: Icon(
                     Icons.edit_rounded,
-                    color: isActive ? section.color : AppColors.textMuted,
+                    color: isActive ? section.color : context.colors.textMuted,
                     size: 18,
                   ),
                   constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -1375,7 +1375,7 @@ class _SectionTile extends StatelessWidget {
                   onPressed: onDelete,
                   icon: Icon(
                     Icons.close_rounded,
-                    color: AppColors.textMuted.withValues(alpha: 0.6),
+                    color: context.colors.textMuted.withValues(alpha: 0.6),
                     size: 18,
                   ),
                   constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -1416,12 +1416,12 @@ class _LoopOptionTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: isActive
             ? color.withValues(alpha: 0.1)
-            : AppColors.bgMedium.withValues(alpha: 0.3),
+            : context.colors.bgMedium.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isActive
               ? color.withValues(alpha: 0.5)
-              : AppColors.surfaceBorder.withValues(alpha: 0.15),
+              : context.colors.surfaceBorder.withValues(alpha: 0.15),
           width: isActive ? 1.5 : 0.5,
         ),
       ),
@@ -1436,7 +1436,7 @@ class _LoopOptionTile extends StatelessWidget {
               children: [
                 Icon(
                   icon,
-                  color: isActive ? color : AppColors.textMuted,
+                  color: isActive ? color : context.colors.textMuted,
                   size: 20,
                 ),
                 const SizedBox(width: 12),
@@ -1447,15 +1447,15 @@ class _LoopOptionTile extends StatelessWidget {
                       Text(
                         label,
                         style: TextStyle(
-                          color: isActive ? color : AppColors.textPrimary,
+                          color: isActive ? color : context.colors.textPrimary,
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
                         subtitle,
-                        style: const TextStyle(
-                          color: AppColors.textMuted,
+                        style: TextStyle(
+                          color: context.colors.textMuted,
                           fontSize: 11,
                           fontFeatures: [FontFeature.tabularFigures()],
                         ),
@@ -1511,16 +1511,16 @@ class _TimeInputRow extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+            Text(label, style: TextStyle(color: context.colors.textSecondary, fontSize: 12)),
             GestureDetector(
               onTap: () => _showTimeInputDialog(context),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.bgDark,
+                  color: context.colors.bgDark,
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: AppColors.surfaceBorder.withValues(alpha: 0.4),
+                    color: context.colors.surfaceBorder.withValues(alpha: 0.4),
                   ),
                 ),
                 child: Row(
@@ -1528,8 +1528,8 @@ class _TimeInputRow extends StatelessWidget {
                   children: [
                     Text(
                       _formatTime(durationMs),
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
+                      style: TextStyle(
+                        color: context.colors.textPrimary,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         fontFeatures: [FontFeature.tabularFigures()],
@@ -1538,7 +1538,7 @@ class _TimeInputRow extends StatelessWidget {
                     const SizedBox(width: 4),
                     Icon(
                       Icons.edit_rounded,
-                      color: AppColors.textMuted.withValues(alpha: 0.6),
+                      color: context.colors.textMuted.withValues(alpha: 0.6),
                       size: 12,
                     ),
                   ],
@@ -1550,7 +1550,7 @@ class _TimeInputRow extends StatelessWidget {
         SliderTheme(
           data: SliderThemeData(
             activeTrackColor: color,
-            inactiveTrackColor: AppColors.surfaceBorder,
+            inactiveTrackColor: context.colors.surfaceBorder,
             thumbColor: color,
             overlayColor: color.withValues(alpha: 0.12),
             trackHeight: 3,
@@ -1576,11 +1576,11 @@ class _TimeInputRow extends StatelessWidget {
       context: context,
       builder: (dialogCtx) {
         return AlertDialog(
-          backgroundColor: AppColors.bgCard,
+          backgroundColor: context.colors.bgCard,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           title: Text(
             'Set $label Time',
-            style: const TextStyle(color: AppColors.textPrimary, fontSize: 16),
+            style: TextStyle(color: context.colors.textPrimary, fontSize: 16),
           ),
           content: Row(
             mainAxisSize: MainAxisSize.min,
@@ -1591,16 +1591,16 @@ class _TimeInputRow extends StatelessWidget {
                   controller: minCtrl,
                   keyboardType: TextInputType.number,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
                   ),
                   decoration: InputDecoration(
                     labelText: 'Min',
-                    labelStyle: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                    labelStyle: TextStyle(color: context.colors.textMuted, fontSize: 11),
                     filled: true,
-                    fillColor: AppColors.bgDark,
+                    fillColor: context.colors.bgDark,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: BorderSide.none,
@@ -1608,12 +1608,12 @@ class _TimeInputRow extends StatelessWidget {
                   ),
                 ),
               ),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(horizontal: 8),
                 child: Text(
                   ':',
                   style: TextStyle(
-                    color: AppColors.textPrimary,
+                    color: context.colors.textPrimary,
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
@@ -1625,16 +1625,16 @@ class _TimeInputRow extends StatelessWidget {
                   controller: secCtrl,
                   keyboardType: TextInputType.number,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
                   ),
                   decoration: InputDecoration(
                     labelText: 'Sec',
-                    labelStyle: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                    labelStyle: TextStyle(color: context.colors.textMuted, fontSize: 11),
                     filled: true,
-                    fillColor: AppColors.bgDark,
+                    fillColor: context.colors.bgDark,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: BorderSide.none,
@@ -1659,7 +1659,7 @@ class _TimeInputRow extends StatelessWidget {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: color,
-                foregroundColor: AppColors.bgDarkest,
+                foregroundColor: context.colors.bgDarkest,
               ),
               child: const Text('Set'),
             ),

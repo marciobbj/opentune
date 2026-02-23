@@ -95,7 +95,7 @@ class _TransportButton extends StatelessWidget {
           padding: const EdgeInsets.all(10),
           child: Icon(
             icon,
-            color: AppColors.textSecondary,
+            color: context.colors.textSecondary,
             size: size,
           ),
         ),
@@ -164,33 +164,33 @@ class _PlayPauseButtonState extends State<_PlayPauseButton>
           height: 64,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: AppColors.primary,
+            color: Theme.of(context).colorScheme.primary,
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.4),
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
                 blurRadius: 20,
                 spreadRadius: 2,
               ),
               BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.2),
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
                 blurRadius: 40,
                 spreadRadius: 5,
               ),
             ],
           ),
           child: widget.isLoading
-              ? const Padding(
+              ? Padding(
                   padding: EdgeInsets.all(18),
                   child: CircularProgressIndicator(
                     strokeWidth: 2.5,
-                    color: AppColors.bgDarkest,
+                    color: context.colors.bgDarkest,
                   ),
                 )
               : Icon(
                   widget.isPlaying
                       ? Icons.pause_rounded
                       : Icons.play_arrow_rounded,
-                  color: AppColors.bgDarkest,
+                  color: context.colors.bgDarkest,
                   size: 36,
                 ),
         ),

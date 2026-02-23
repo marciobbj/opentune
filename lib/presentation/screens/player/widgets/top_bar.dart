@@ -32,7 +32,7 @@ class TopBar extends StatelessWidget {
         bottom: 0,
       ),
       decoration: BoxDecoration(
-        color: AppColors.bgDarkest.withValues(alpha: 0.95),
+        color: context.colors.bgDarkest.withValues(alpha: 0.95),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -43,7 +43,7 @@ class TopBar extends StatelessWidget {
               if (onBackPressed != null)
                 IconButton(
                   icon: const Icon(Icons.arrow_back_ios_rounded, size: 20),
-                  color: AppColors.textSecondary,
+                  color: context.colors.textSecondary,
                   onPressed: onBackPressed,
                 ),
               Expanded(
@@ -51,8 +51,8 @@ class TopBar extends StatelessWidget {
                   children: [
                     Text(
                       trackTitle,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
+                      style: TextStyle(
+                        color: context.colors.textPrimary,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
@@ -62,8 +62,8 @@ class TopBar extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       trackArtist,
-                      style: const TextStyle(
-                        color: AppColors.textMuted,
+                      style: TextStyle(
+                        color: context.colors.textMuted,
                         fontSize: 12,
                       ),
                       textAlign: TextAlign.center,
@@ -74,7 +74,7 @@ class TopBar extends StatelessWidget {
               ),
               IconButton(
                 icon: const Icon(Icons.more_vert_rounded, size: 20),
-                color: AppColors.textSecondary,
+                color: context.colors.textSecondary,
                 onPressed: onMenuPressed,
               ),
             ],
@@ -126,7 +126,7 @@ class _SectionTimeline extends StatelessWidget {
               height: 3,
               margin: const EdgeInsets.only(top: 12),
               decoration: BoxDecoration(
-                color: AppColors.surfaceBorder.withValues(alpha: 0.3),
+                color: context.colors.surfaceBorder.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),

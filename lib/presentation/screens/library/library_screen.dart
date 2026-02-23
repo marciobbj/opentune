@@ -61,7 +61,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Removed "${track.title}" from library'),
-          backgroundColor: AppColors.success,
+          backgroundColor: context.colors.success,
         ),
       );
     }
@@ -80,9 +80,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Track updated'),
-            backgroundColor: AppColors.success,
+            backgroundColor: context.colors.success,
           ),
         );
       }
@@ -92,7 +92,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgDarkest,
+      backgroundColor: context.colors.bgDarkest,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -106,10 +106,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Library',
                         style: TextStyle(
-                          color: AppColors.primary,
+                          color: Theme.of(context).colorScheme.primary,
                           fontSize: 28,
                           fontWeight: FontWeight.w700,
                         ),
@@ -117,8 +117,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       const SizedBox(height: 2),
                       Text(
                         '${_playlists.length} playlists · ${_allTracks.length} tracks',
-                        style: const TextStyle(
-                          color: AppColors.textMuted,
+                        style: TextStyle(
+                          color: context.colors.textMuted,
                           fontSize: 13,
                         ),
                       ),
@@ -130,12 +130,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     icon: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.12),
+                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.add_rounded,
-                        color: AppColors.primary,
+                        color: Theme.of(context).colorScheme.primary,
                         size: 22,
                       ),
                     ),
@@ -147,12 +147,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             // Content
             Expanded(
               child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(color: AppColors.primary),
+                  ? Center(
+                      child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary),
                     )
                   : RefreshIndicator(
                       onRefresh: _loadData,
-                      color: AppColors.primary,
+                      color: Theme.of(context).colorScheme.primary,
                       child: _buildContent(),
                     ),
             ),
@@ -161,8 +161,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showCreatePlaylistDialog,
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.bgDarkest,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: context.colors.bgDarkest,
         icon: const Icon(Icons.create_new_folder_rounded),
         label: const Text('New Playlist', style: TextStyle(fontWeight: FontWeight.w600)),
       ),
@@ -173,13 +173,13 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     return CustomScrollView(
       slivers: [
         // Playlists Section
-        const SliverToBoxAdapter(
+        SliverToBoxAdapter(
           child: Padding(
             padding: EdgeInsets.fromLTRB(20, 16, 20, 12),
             child: Text(
               'PLAYLISTS',
               style: TextStyle(
-                color: AppColors.textMuted,
+                color: context.colors.textMuted,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 1.5,
@@ -193,36 +193,36 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             child: _buildEmptyPlaylists(),
           )
         else
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 1.3,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
-              delegate: SliverChildBuilderDelegate(
-                (context, index) => _PlaylistCard(
-                  playlist: _playlists[index],
-                  trackCount: _playlists[index].trackIds.length,
-                  colorIndex: index,
-                  onTap: () => _openPlaylist(_playlists[index]),
-                  onLongPress: () => _showPlaylistOptions(_playlists[index]),
-                ),
-                childCount: _playlists.length,
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 140,
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                scrollDirection: Axis.horizontal,
+                itemCount: _playlists.length,
+                itemBuilder: (context, index) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: _PlaylistCard(
+                      playlist: _playlists[index],
+                      trackCount: _playlists[index].trackIds.length,
+                      onTap: () => _openPlaylist(_playlists[index]),
+                      onOptionsTap: () => _showPlaylistOptions(_playlists[index]),
+                    ),
+                  );
+                },
               ),
             ),
           ),
 
         // All tracks section
-        const SliverToBoxAdapter(
+        SliverToBoxAdapter(
           child: Padding(
             padding: EdgeInsets.fromLTRB(20, 24, 20, 12),
             child: Text(
               'ALL TRACKS',
               style: TextStyle(
-                color: AppColors.textMuted,
+                color: context.colors.textMuted,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 1.5,
@@ -260,33 +260,33 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        color: AppColors.bgCard.withValues(alpha: 0.5),
+        color: context.colors.bgCard.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppColors.surfaceBorder.withValues(alpha: 0.2),
+          color: context.colors.surfaceBorder.withValues(alpha: 0.2),
         ),
       ),
       child: Column(
         children: [
           Icon(
             Icons.folder_open_rounded,
-            color: AppColors.textMuted.withValues(alpha: 0.4),
+            color: context.colors.textMuted.withValues(alpha: 0.4),
             size: 40,
           ),
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'No playlists yet',
             style: TextStyle(
-              color: AppColors.textSecondary,
+              color: context.colors.textSecondary,
               fontSize: 15,
               fontWeight: FontWeight.w500,
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Create playlists to organize your practice sessions',
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+            style: TextStyle(color: context.colors.textMuted, fontSize: 12),
           ),
         ],
       ),
@@ -298,33 +298,33 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        color: AppColors.bgCard.withValues(alpha: 0.5),
+        color: context.colors.bgCard.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppColors.surfaceBorder.withValues(alpha: 0.2),
+          color: context.colors.surfaceBorder.withValues(alpha: 0.2),
         ),
       ),
       child: Column(
         children: [
           Icon(
             Icons.music_off_rounded,
-            color: AppColors.textMuted.withValues(alpha: 0.4),
+            color: context.colors.textMuted.withValues(alpha: 0.4),
             size: 40,
           ),
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'No tracks imported',
             style: TextStyle(
-              color: AppColors.textSecondary,
+              color: context.colors.textSecondary,
               fontSize: 15,
               fontWeight: FontWeight.w500,
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Import audio files to start practicing',
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+            style: TextStyle(color: context.colors.textMuted, fontSize: 12),
           ),
         ],
       ),
@@ -391,7 +391,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Imported $imported track${imported > 1 ? "s" : ""}'),
-            backgroundColor: AppColors.success,
+            backgroundColor: context.colors.success,
           ),
         );
         _loadData();
@@ -401,7 +401,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error importing: $e'),
-            backgroundColor: AppColors.error,
+            backgroundColor: context.colors.error,
           ),
         );
       }
@@ -425,11 +425,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: AppColors.bgCard,
+          backgroundColor: context.colors.bgCard,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text(
+          title: Text(
             'New Playlist',
-            style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+            style: TextStyle(color: context.colors.textPrimary, fontWeight: FontWeight.w600),
           ),
           content: SizedBox(
             width: 380,
@@ -440,14 +440,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 TextField(
                   controller: nameController,
                   autofocus: true,
-                  style: const TextStyle(color: AppColors.textPrimary),
+                  style: TextStyle(color: context.colors.textPrimary),
                   decoration: InputDecoration(
                     labelText: 'Playlist Name',
-                    labelStyle: const TextStyle(color: AppColors.textMuted),
+                    labelStyle: TextStyle(color: context.colors.textMuted),
                     hintText: 'e.g. Show de Agosto, Barzinho...',
-                    hintStyle: TextStyle(color: AppColors.textMuted.withValues(alpha: 0.5)),
+                    hintStyle: TextStyle(color: context.colors.textMuted.withValues(alpha: 0.5)),
                     filled: true,
-                    fillColor: AppColors.bgDark,
+                    fillColor: context.colors.bgDark,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: BorderSide.none,
@@ -467,16 +467,16 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: AppColors.bgMedium,
+                          color: context.colors.bgMedium,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: AppColors.surfaceBorder.withValues(alpha: 0.3),
+                            color: context.colors.surfaceBorder.withValues(alpha: 0.3),
                           ),
                         ),
                         child: Text(
                           '${p["icon"]} ${p["name"]}',
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
+                          style: TextStyle(
+                            color: context.colors.textSecondary,
                             fontSize: 12,
                           ),
                         ),
@@ -487,15 +487,15 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: descController,
-                  style: const TextStyle(color: AppColors.textPrimary),
+                  style: TextStyle(color: context.colors.textPrimary),
                   maxLines: 2,
                   decoration: InputDecoration(
                     labelText: 'Description (optional)',
-                    labelStyle: const TextStyle(color: AppColors.textMuted),
+                    labelStyle: TextStyle(color: context.colors.textMuted),
                     hintText: 'What is this playlist for?',
-                    hintStyle: TextStyle(color: AppColors.textMuted.withValues(alpha: 0.5)),
+                    hintStyle: TextStyle(color: context.colors.textMuted.withValues(alpha: 0.5)),
                     filled: true,
-                    fillColor: AppColors.bgDark,
+                    fillColor: context.colors.bgDark,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: BorderSide.none,
@@ -526,8 +526,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 _loadData();
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.bgDarkest,
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: context.colors.bgDarkest,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               child: const Text('Create', style: TextStyle(fontWeight: FontWeight.w600)),
@@ -541,7 +541,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   void _showPlaylistOptions(Playlist playlist) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.bgCard,
+      backgroundColor: context.colors.bgCard,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -555,31 +555,31 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 Container(
                   width: 36, height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceBorder,
+                    color: context.colors.surfaceBorder,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
                 const SizedBox(height: 16),
                 Text(
                   playlist.name,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 16),
                 ListTile(
-                  leading: const Icon(Icons.edit_rounded, color: AppColors.textSecondary),
-                  title: const Text('Rename', style: TextStyle(color: AppColors.textPrimary)),
+                  leading: Icon(Icons.edit_rounded, color: context.colors.textSecondary),
+                  title: Text('Rename', style: TextStyle(color: context.colors.textPrimary)),
                   onTap: () {
                     Navigator.pop(ctx);
                     _showRenamePlaylistDialog(playlist);
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
-                  title: const Text('Delete Playlist', style: TextStyle(color: AppColors.error)),
+                  leading: Icon(Icons.delete_outline_rounded, color: context.colors.error),
+                  title: Text('Delete Playlist', style: TextStyle(color: context.colors.error)),
                   onTap: () async {
                     Navigator.pop(ctx);
                     await LocalDatabase.deletePlaylist(playlist.id!);
@@ -600,16 +600,16 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: AppColors.bgCard,
+          backgroundColor: context.colors.bgCard,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Rename Playlist', style: TextStyle(color: AppColors.textPrimary)),
+          title: Text('Rename Playlist', style: TextStyle(color: context.colors.textPrimary)),
           content: TextField(
             controller: controller,
             autofocus: true,
-            style: const TextStyle(color: AppColors.textPrimary),
+            style: TextStyle(color: context.colors.textPrimary),
             decoration: InputDecoration(
               filled: true,
-              fillColor: AppColors.bgDark,
+              fillColor: context.colors.bgDark,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide.none,
@@ -633,8 +633,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 _loadData();
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.bgDarkest,
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: context.colors.bgDarkest,
               ),
               child: const Text('Save'),
             ),
@@ -647,9 +647,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   void _showAddToPlaylistDialog(Track track) {
     if (_playlists.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Create a playlist first'),
-          backgroundColor: AppColors.warning,
+          backgroundColor: context.colors.warning,
         ),
       );
       return;
@@ -657,7 +657,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.bgCard,
+      backgroundColor: context.colors.bgCard,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -671,15 +671,15 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 Container(
                   width: 36, height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceBorder,
+                    color: context.colors.surfaceBorder,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'Add to Playlist',
                   style: TextStyle(
-                    color: AppColors.textPrimary,
+                    color: context.colors.textPrimary,
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                   ),
@@ -690,18 +690,18 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   return ListTile(
                     leading: Icon(
                       alreadyAdded ? Icons.check_circle_rounded : Icons.folder_rounded,
-                      color: alreadyAdded ? AppColors.success : AppColors.markerColors[_playlists.indexOf(playlist) % AppColors.markerColors.length],
+                      color: alreadyAdded ? context.colors.success : context.colors.markerColors[(playlist.id ?? 0) % context.colors.markerColors.length],
                     ),
                     title: Text(
                       playlist.name,
-                      style: const TextStyle(color: AppColors.textPrimary),
+                      style: TextStyle(color: context.colors.textPrimary),
                     ),
                     subtitle: Text(
                       '${playlist.trackIds.length} tracks',
-                      style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                      style: TextStyle(color: context.colors.textMuted, fontSize: 12),
                     ),
                     trailing: alreadyAdded
-                        ? const Text('Added', style: TextStyle(color: AppColors.success, fontSize: 12))
+                        ? Text('Added', style: TextStyle(color: context.colors.success, fontSize: 12))
                         : null,
                     onTap: alreadyAdded ? null : () async {
                       await LocalDatabase.addTrackToPlaylist(playlist.id!, track.id!);
@@ -711,7 +711,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text('Added to "${playlist.name}"'),
-                            backgroundColor: AppColors.success,
+                            backgroundColor: context.colors.success,
                           ),
                         );
                       }
@@ -732,51 +732,67 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 class _PlaylistCard extends StatelessWidget {
   final Playlist playlist;
   final int trackCount;
-  final int colorIndex;
   final VoidCallback? onTap;
-  final VoidCallback? onLongPress;
+  final VoidCallback? onOptionsTap;
 
   const _PlaylistCard({
     required this.playlist,
     required this.trackCount,
-    required this.colorIndex,
     this.onTap,
-    this.onLongPress,
+    this.onOptionsTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final color = AppColors.markerColors[colorIndex % AppColors.markerColors.length];
+    final color = context.colors.markerColors[(playlist.id ?? 0) % context.colors.markerColors.length];
 
     return GestureDetector(
       onTap: onTap,
-      onLongPress: onLongPress,
       child: Container(
+        width: 140,
         decoration: BoxDecoration(
-          color: AppColors.bgCard.withValues(alpha: 0.8),
+          color: context.colors.bgCard.withValues(alpha: 0.8),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: color.withValues(alpha: 0.25),
             width: 0.5,
           ),
         ),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Icon(
-              Icons.folder_rounded,
-              color: color,
-              size: 28,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.folder_rounded,
+                  color: color,
+                  size: 28,
+                ),
+                GestureDetector(
+                  onTap: onOptionsTap,
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: EdgeInsets.all(4.0),
+                    child: Icon(
+                      Icons.more_vert_rounded,
+                      color: context.colors.textMuted,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ],
             ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   playlist.name,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                   ),
@@ -786,8 +802,8 @@ class _PlaylistCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   '$trackCount track${trackCount != 1 ? "s" : ""}',
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
+                  style: TextStyle(
+                    color: context.colors.textMuted,
                     fontSize: 12,
                   ),
                 ),
@@ -822,7 +838,7 @@ class _TrackTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
       decoration: BoxDecoration(
-        color: AppColors.bgCard.withValues(alpha: 0.4),
+        color: context.colors.bgCard.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Material(
@@ -838,12 +854,12 @@ class _TrackTile extends StatelessWidget {
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.music_note_rounded,
-                    color: AppColors.primary,
+                    color: Theme.of(context).colorScheme.primary,
                     size: 20,
                   ),
                 ),
@@ -854,8 +870,8 @@ class _TrackTile extends StatelessWidget {
                     children: [
                       Text(
                         track.title,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
+                        style: TextStyle(
+                          color: context.colors.textPrimary,
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                         ),
@@ -864,8 +880,8 @@ class _TrackTile extends StatelessWidget {
                       ),
                       Text(
                         track.artist,
-                        style: const TextStyle(
-                          color: AppColors.textMuted,
+                        style: TextStyle(
+                          color: context.colors.textMuted,
                           fontSize: 12,
                         ),
                         maxLines: 1,
@@ -875,12 +891,12 @@ class _TrackTile extends StatelessWidget {
                   ),
                 ),
                 PopupMenuButton<String>(
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.more_vert_rounded,
-                    color: AppColors.textMuted,
+                    color: context.colors.textMuted,
                     size: 20,
                   ),
-                  color: AppColors.bgCard,
+                  color: context.colors.bgCard,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   onSelected: (value) {
                     if (value == 'add') onAddToPlaylist?.call();
@@ -888,17 +904,17 @@ class _TrackTile extends StatelessWidget {
                     if (value == 'remove') onRemoveFromLibrary?.call();
                   },
                   itemBuilder: (context) => [
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'add',
-                      child: Text('Add to playlist', style: TextStyle(color: AppColors.textPrimary)),
+                      child: Text('Add to playlist', style: TextStyle(color: context.colors.textPrimary)),
                     ),
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'edit',
-                      child: Text('Edit metadata', style: TextStyle(color: AppColors.textPrimary)),
+                      child: Text('Edit metadata', style: TextStyle(color: context.colors.textPrimary)),
                     ),
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'remove',
-                      child: Text('Remove from library', style: TextStyle(color: AppColors.error)),
+                      child: Text('Remove from library', style: TextStyle(color: context.colors.error)),
                     ),
                   ],
                 ),

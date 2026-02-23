@@ -42,7 +42,7 @@ class BottomControls extends StatelessWidget {
         top: 12,
       ),
       decoration: BoxDecoration(
-        color: AppColors.bgDarkest.withValues(alpha: 0.95),
+        color: context.colors.bgDarkest.withValues(alpha: 0.95),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -53,7 +53,7 @@ class BottomControls extends StatelessWidget {
             value: _tempoText,
             icon: Icons.speed_rounded,
             isActive: tempo != 1.0,
-            activeColor: AppColors.primary,
+            activeColor: Theme.of(context).colorScheme.primary,
             onTap: onTempoTap,
           ),
 
@@ -63,7 +63,7 @@ class BottomControls extends StatelessWidget {
             value: _pitchText,
             icon: Icons.tune_rounded,
             isActive: pitch != 0,
-            activeColor: AppColors.secondary,
+            activeColor: context.colors.secondary,
             onTap: onPitchTap,
           ),
 
@@ -119,12 +119,12 @@ class _ControlChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: isActive
               ? activeColor.withValues(alpha: 0.12)
-              : AppColors.bgCard.withValues(alpha: 0.6),
+              : context.colors.bgCard.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isActive
                 ? activeColor.withValues(alpha: 0.4)
-                : AppColors.surfaceBorder.withValues(alpha: 0.3),
+                : context.colors.surfaceBorder.withValues(alpha: 0.3),
             width: 0.5,
           ),
         ),
@@ -133,14 +133,14 @@ class _ControlChip extends StatelessWidget {
           children: [
             Icon(
               icon,
-              color: isActive ? activeColor : AppColors.textMuted,
+              color: isActive ? activeColor : context.colors.textMuted,
               size: 18,
             ),
             const SizedBox(height: 3),
             Text(
               value,
               style: TextStyle(
-                color: isActive ? activeColor : AppColors.textPrimary,
+                color: isActive ? activeColor : context.colors.textPrimary,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 fontFeatures: const [FontFeature.tabularFigures()],
@@ -151,7 +151,7 @@ class _ControlChip extends StatelessWidget {
               style: TextStyle(
                 color: isActive
                     ? activeColor.withValues(alpha: 0.7)
-                    : AppColors.textMuted,
+                    : context.colors.textMuted,
                 fontSize: 9,
                 fontWeight: FontWeight.w500,
               ),

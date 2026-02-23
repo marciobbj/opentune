@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../player/player_screen.dart';
 import '../library/library_screen.dart';
+import '../settings/settings_screen.dart';
 import '../../providers/navigation_provider.dart';
 import '../../providers/player_provider.dart';
 
@@ -17,63 +18,80 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  final _screens = const [
-    LibraryScreen(),
-    PlayerScreen(),
-  ];
+  final _screens = const [LibraryScreen(), PlayerScreen(), SettingsScreen()];
 
   @override
   Widget build(BuildContext context) {
     final currentIndex = ref.watch(navigationProvider);
 
     Widget scaffold = Scaffold(
-      backgroundColor: AppColors.bgDarkest,
-      body: IndexedStack(
-        index: currentIndex,
-        children: _screens,
-      ),
+      backgroundColor: context.colors.bgDarkest,
+      body: IndexedStack(index: currentIndex, children: _screens),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: AppColors.bgDark,
+          color: context.colors.bgDark,
           border: Border(
             top: BorderSide(
-              color: AppColors.surfaceBorder.withValues(alpha: 0.3),
+              color: context.colors.surfaceBorder.withValues(alpha: 0.3),
               width: 0.5,
             ),
           ),
         ),
         child: NavigationBar(
           selectedIndex: currentIndex,
-          onDestinationSelected: (i) => ref.read(navigationProvider.notifier).state = i,
+          onDestinationSelected: (i) =>
+              ref.read(navigationProvider.notifier).state = i,
           backgroundColor: Colors.transparent,
           surfaceTintColor: Colors.transparent,
-          indicatorColor: AppColors.primary.withValues(alpha: 0.12),
+          indicatorColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
           height: 68,
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          destinations: const [
+          destinations: [
             NavigationDestination(
-              icon: Icon(Icons.library_music_outlined, color: AppColors.textMuted),
-              selectedIcon: Icon(Icons.library_music_rounded, color: AppColors.primary),
+              icon: Icon(
+                Icons.library_music_outlined,
+                color: context.colors.textMuted,
+              ),
+              selectedIcon: Icon(
+                Icons.library_music_rounded,
+                color: Theme.of(context).colorScheme.primary,
+              ),
               label: 'Library',
             ),
             NavigationDestination(
-              icon: Icon(Icons.play_circle_outline_rounded, color: AppColors.textMuted),
-              selectedIcon: Icon(Icons.play_circle_rounded, color: AppColors.primary),
+              icon: Icon(
+                Icons.play_circle_outline_rounded,
+                color: context.colors.textMuted,
+              ),
+              selectedIcon: Icon(
+                Icons.play_circle_rounded,
+                color: Theme.of(context).colorScheme.primary,
+              ),
               label: 'Player',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.settings_outlined, color: context.colors.textMuted),
+              selectedIcon: Icon(
+                Icons.settings_rounded,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              label: 'Settings',
             ),
           ],
         ),
       ),
     );
 
-    if (!kIsWeb && (Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
+    if (!kIsWeb &&
+        (Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
       return Focus(
         autofocus: true,
         onKeyEvent: (node, event) {
           if (event is KeyDownEvent || event is KeyRepeatEvent) {
             final notifier = ref.read(playerProvider.notifier);
-            
-            if (event.logicalKey == LogicalKeyboardKey.space && event is KeyDownEvent) {
+
+            if (event.logicalKey == LogicalKeyboardKey.space &&
+                event is KeyDownEvent) {
               notifier.togglePlayPause();
               return KeyEventResult.handled;
             } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {

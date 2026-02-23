@@ -43,10 +43,10 @@ class MiniWaveform extends StatelessWidget {
           child: Container(
             height: 40,
             decoration: BoxDecoration(
-              color: AppColors.bgMedium,
+              color: context.colors.bgMedium,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: AppColors.surfaceBorder.withValues(alpha: 0.2),
+                color: context.colors.surfaceBorder.withValues(alpha: 0.2),
                 width: 0.5,
               ),
             ),
@@ -58,6 +58,8 @@ class MiniWaveform extends StatelessWidget {
                   progress: progress,
                   duration: duration,
                   sections: sections,
+                  primaryColor: Theme.of(context).colorScheme.primary,
+                  mutedColor: context.colors.textMuted,
                   loopStart: loopStart,
                   loopEnd: loopEnd,
                   loopEnabled: loopEnabled,
@@ -80,11 +82,15 @@ class _MiniWaveformPainter extends CustomPainter {
   final Duration? loopStart;
   final Duration? loopEnd;
   final bool loopEnabled;
+  final Color primaryColor;
+  final Color mutedColor;
 
   _MiniWaveformPainter({
     required this.waveformData,
     required this.progress,
     required this.duration,
+    required this.primaryColor,
+    required this.mutedColor,
     this.sections = const [],
     this.loopStart,
     this.loopEnd,
@@ -115,13 +121,13 @@ class _MiniWaveformPainter extends CustomPainter {
       final startX = (loopStart!.inMilliseconds / totalMs) * size.width;
       final endX = (loopEnd!.inMilliseconds / totalMs) * size.width;
       final paint = Paint()
-        ..color = (loopEnabled ? AppColors.primary : AppColors.textMuted)
+        ..color = (loopEnabled ? primaryColor : mutedColor)
             .withValues(alpha: 0.1)
         ..style = PaintingStyle.fill;
       canvas.drawRect(Rect.fromLTRB(startX, 0, endX, size.height), paint);
 
       final borderPaint = Paint()
-        ..color = loopEnabled ? AppColors.primary : AppColors.textMuted
+        ..color = loopEnabled ? primaryColor : mutedColor
         ..strokeWidth = 1.5;
       canvas.drawLine(Offset(startX, 0), Offset(startX, size.height), borderPaint);
       canvas.drawLine(Offset(endX, 0), Offset(endX, size.height), borderPaint);
@@ -138,8 +144,8 @@ class _MiniWaveformPainter extends CustomPainter {
       final barHeight = math.max(amplitude * maxBarHeight, 0.5);
 
       final color = barProgress <= progress
-          ? AppColors.primary.withValues(alpha: 0.8)
-          : AppColors.textMuted.withValues(alpha: 0.3);
+          ? primaryColor.withValues(alpha: 0.8)
+          : mutedColor.withValues(alpha: 0.3);
 
       final paint = Paint()
         ..color = color

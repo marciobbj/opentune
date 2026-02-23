@@ -45,7 +45,7 @@ class _EditTrackDialogState extends State<EditTrackDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: AppColors.bgCard,
+      backgroundColor: context.colors.bgCard,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -53,10 +53,10 @@ class _EditTrackDialogState extends State<EditTrackDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Edit Track',
               style: TextStyle(
-                color: AppColors.textPrimary,
+                color: context.colors.textPrimary,
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
               ),
@@ -86,7 +86,7 @@ class _EditTrackDialogState extends State<EditTrackDialog> {
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
                   style: TextButton.styleFrom(
-                    foregroundColor: AppColors.textSecondary,
+                    foregroundColor: context.colors.textSecondary,
                   ),
                   child: const Text('Cancel'),
                 ),
@@ -94,8 +94,8 @@ class _EditTrackDialogState extends State<EditTrackDialog> {
                 ElevatedButton(
                   onPressed: _save,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.bgDarkest,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: context.colors.bgDarkest,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -118,13 +118,13 @@ class _EditTrackDialogState extends State<EditTrackDialog> {
   }) {
     return TextField(
       controller: controller,
-      style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+      style: TextStyle(color: context.colors.textPrimary, fontSize: 14),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
-        prefixIcon: Icon(icon, color: AppColors.textMuted, size: 20),
+        labelStyle: TextStyle(color: context.colors.textMuted, fontSize: 14),
+        prefixIcon: Icon(icon, color: context.colors.textMuted, size: 20),
         filled: true,
-        fillColor: AppColors.bgElevated,
+        fillColor: context.colors.bgElevated,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide.none,
@@ -135,7 +135,7 @@ class _EditTrackDialogState extends State<EditTrackDialog> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: AppColors.primary.withValues(alpha: 0.5), width: 1),
+          borderSide: BorderSide(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5), width: 1),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),

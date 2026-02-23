@@ -30,18 +30,18 @@ class TempoControl extends StatelessWidget {
           children: [
             Text(
               _bpmLabel,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
+              style: TextStyle(
+                color: context.colors.textPrimary,
                 fontSize: 28,
                 fontWeight: FontWeight.w700,
                 fontFeatures: [FontFeature.tabularFigures()],
               ),
             ),
             const SizedBox(width: 4),
-            const Text(
+            Text(
               'bpm',
               style: TextStyle(
-                color: AppColors.textMuted,
+                color: context.colors.textMuted,
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
               ),
@@ -51,8 +51,8 @@ class TempoControl extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           'Speed: $_tempoLabel',
-          style: const TextStyle(
-            color: AppColors.textMuted,
+          style: TextStyle(
+            color: context.colors.textMuted,
             fontSize: 11,
           ),
         ),
@@ -61,10 +61,10 @@ class TempoControl extends StatelessWidget {
           width: double.infinity,
           child: SliderTheme(
             data: SliderThemeData(
-              activeTrackColor: AppColors.primary,
-              inactiveTrackColor: AppColors.surfaceBorder,
-              thumbColor: AppColors.primary,
-              overlayColor: AppColors.primary.withValues(alpha: 0.12),
+              activeTrackColor: Theme.of(context).colorScheme.primary,
+              inactiveTrackColor: context.colors.surfaceBorder,
+              thumbColor: Theme.of(context).colorScheme.primary,
+              overlayColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
               trackHeight: 3,
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
             ),
@@ -80,7 +80,7 @@ class TempoControl extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('0.25x', style: TextStyle(color: AppColors.textMuted, fontSize: 10)),
+            Text('0.25x', style: TextStyle(color: context.colors.textMuted, fontSize: 10)),
             // Quick presets
             _TempoPreset(label: '0.5x', value: 0.5, current: tempo, onTap: onChanged),
             _TempoPreset(label: '0.75x', value: 0.75, current: tempo, onTap: onChanged),
@@ -118,17 +118,17 @@ class _TempoPreset extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           color: isActive
-              ? AppColors.primary.withValues(alpha: 0.15)
+              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.15)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
           border: isActive
-              ? Border.all(color: AppColors.primary.withValues(alpha: 0.4))
+              ? Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4))
               : null,
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isActive ? AppColors.primary : AppColors.textMuted,
+            color: isActive ? Theme.of(context).colorScheme.primary : context.colors.textMuted,
             fontSize: 11,
             fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
           ),
