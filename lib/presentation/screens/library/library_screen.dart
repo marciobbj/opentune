@@ -76,8 +76,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     if (updatedTrack != null) {
       await LocalDatabase.updateTrack(updatedTrack);
       await _loadData();
-      ref.read(playerProvider.notifier).updateCurrentTrackMetadata(updatedTrack);
-      
+      ref
+          .read(playerProvider.notifier)
+          .updateCurrentTrackMetadata(updatedTrack);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -130,7 +132,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     icon: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
@@ -148,7 +152,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             Expanded(
               child: _isLoading
                   ? Center(
-                      child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary),
+                      child: CircularProgressIndicator(
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                     )
                   : RefreshIndicator(
                       onRefresh: _loadData,
@@ -164,7 +170,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: context.colors.bgDarkest,
         icon: const Icon(Icons.create_new_folder_rounded),
-        label: const Text('New Playlist', style: TextStyle(fontWeight: FontWeight.w600)),
+        label: const Text(
+          'New Playlist',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
       ),
     );
   }
@@ -189,9 +198,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         ),
 
         if (_playlists.isEmpty)
-          SliverToBoxAdapter(
-            child: _buildEmptyPlaylists(),
-          )
+          SliverToBoxAdapter(child: _buildEmptyPlaylists())
         else
           SliverToBoxAdapter(
             child: SizedBox(
@@ -207,7 +214,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       playlist: _playlists[index],
                       trackCount: _playlists[index].trackIds.length,
                       onTap: () => _openPlaylist(_playlists[index]),
-                      onOptionsTap: () => _showPlaylistOptions(_playlists[index]),
+                      onOptionsTap: () =>
+                          _showPlaylistOptions(_playlists[index]),
                     ),
                   );
                 },
@@ -232,9 +240,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         ),
 
         if (_allTracks.isEmpty)
-          SliverToBoxAdapter(
-            child: _buildEmptyTracks(),
-          )
+          SliverToBoxAdapter(child: _buildEmptyTracks())
         else
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
@@ -243,9 +249,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 (context, index) => _TrackTile(
                   track: _allTracks[index],
                   onTap: () => _openTrackInPlayer(_allTracks[index]),
-                  onAddToPlaylist: () => _showAddToPlaylistDialog(_allTracks[index]),
+                  onAddToPlaylist: () =>
+                      _showAddToPlaylistDialog(_allTracks[index]),
                   onEditTrack: () => _editTrackMetadata(_allTracks[index]),
-                  onRemoveFromLibrary: () => _removeTrackFromLibrary(_allTracks[index]),
+                  onRemoveFromLibrary: () =>
+                      _removeTrackFromLibrary(_allTracks[index]),
                 ),
                 childCount: _allTracks.length,
               ),
@@ -354,7 +362,17 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['mp3', 'flac', 'wav', 'ogg', 'aac', 'm4a', 'opus', 'wma', 'aiff'],
+        allowedExtensions: [
+          'mp3',
+          'flac',
+          'wav',
+          'ogg',
+          'aac',
+          'm4a',
+          'opus',
+          'wma',
+          'aiff',
+        ],
         dialogTitle: 'Select audio files',
         allowMultiple: true,
       );
@@ -426,10 +444,15 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       builder: (ctx) {
         return AlertDialog(
           backgroundColor: context.colors.bgCard,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Text(
             'New Playlist',
-            style: TextStyle(color: context.colors.textPrimary, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              color: context.colors.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           content: SizedBox(
             width: 380,
@@ -445,7 +468,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     labelText: 'Playlist Name',
                     labelStyle: TextStyle(color: context.colors.textMuted),
                     hintText: 'e.g. Show de Agosto, Barzinho...',
-                    hintStyle: TextStyle(color: context.colors.textMuted.withValues(alpha: 0.5)),
+                    hintStyle: TextStyle(
+                      color: context.colors.textMuted.withValues(alpha: 0.5),
+                    ),
                     filled: true,
                     fillColor: context.colors.bgDark,
                     border: OutlineInputBorder(
@@ -465,12 +490,17 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                         nameController.text = p['name']!;
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: context.colors.bgMedium,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: context.colors.surfaceBorder.withValues(alpha: 0.3),
+                            color: context.colors.surfaceBorder.withValues(
+                              alpha: 0.3,
+                            ),
                           ),
                         ),
                         child: Text(
@@ -493,7 +523,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     labelText: 'Description (optional)',
                     labelStyle: TextStyle(color: context.colors.textMuted),
                     hintText: 'What is this playlist for?',
-                    hintStyle: TextStyle(color: context.colors.textMuted.withValues(alpha: 0.5)),
+                    hintStyle: TextStyle(
+                      color: context.colors.textMuted.withValues(alpha: 0.5),
+                    ),
                     filled: true,
                     fillColor: context.colors.bgDark,
                     border: OutlineInputBorder(
@@ -528,9 +560,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.primary,
                 foregroundColor: context.colors.bgDarkest,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
-              child: const Text('Create', style: TextStyle(fontWeight: FontWeight.w600)),
+              child: const Text(
+                'Create',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
             ),
           ],
         );
@@ -553,7 +590,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 36, height: 4,
+                  width: 36,
+                  height: 4,
                   decoration: BoxDecoration(
                     color: context.colors.surfaceBorder,
                     borderRadius: BorderRadius.circular(2),
@@ -570,16 +608,28 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 ),
                 const SizedBox(height: 16),
                 ListTile(
-                  leading: Icon(Icons.edit_rounded, color: context.colors.textSecondary),
-                  title: Text('Rename', style: TextStyle(color: context.colors.textPrimary)),
+                  leading: Icon(
+                    Icons.edit_rounded,
+                    color: context.colors.textSecondary,
+                  ),
+                  title: Text(
+                    'Rename',
+                    style: TextStyle(color: context.colors.textPrimary),
+                  ),
                   onTap: () {
                     Navigator.pop(ctx);
                     _showRenamePlaylistDialog(playlist);
                   },
                 ),
                 ListTile(
-                  leading: Icon(Icons.delete_outline_rounded, color: context.colors.error),
-                  title: Text('Delete Playlist', style: TextStyle(color: context.colors.error)),
+                  leading: Icon(
+                    Icons.delete_outline_rounded,
+                    color: context.colors.error,
+                  ),
+                  title: Text(
+                    'Delete Playlist',
+                    style: TextStyle(color: context.colors.error),
+                  ),
                   onTap: () async {
                     Navigator.pop(ctx);
                     await LocalDatabase.deletePlaylist(playlist.id!);
@@ -601,8 +651,13 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       builder: (ctx) {
         return AlertDialog(
           backgroundColor: context.colors.bgCard,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text('Rename Playlist', style: TextStyle(color: context.colors.textPrimary)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'Rename Playlist',
+            style: TextStyle(color: context.colors.textPrimary),
+          ),
           content: TextField(
             controller: controller,
             autofocus: true,
@@ -617,7 +672,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
             ElevatedButton(
               onPressed: () async {
                 final name = controller.text.trim();
@@ -669,7 +727,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 36, height: 4,
+                  width: 36,
+                  height: 4,
                   decoration: BoxDecoration(
                     color: context.colors.surfaceBorder,
                     borderRadius: BorderRadius.circular(2),
@@ -689,8 +748,13 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   final alreadyAdded = playlist.trackIds.contains(track.id);
                   return ListTile(
                     leading: Icon(
-                      alreadyAdded ? Icons.check_circle_rounded : Icons.folder_rounded,
-                      color: alreadyAdded ? context.colors.success : context.colors.markerColors[(playlist.id ?? 0) % context.colors.markerColors.length],
+                      alreadyAdded
+                          ? Icons.check_circle_rounded
+                          : Icons.folder_rounded,
+                      color: alreadyAdded
+                          ? context.colors.success
+                          : context.colors.markerColors[(playlist.id ?? 0) %
+                                context.colors.markerColors.length],
                     ),
                     title: Text(
                       playlist.name,
@@ -698,24 +762,38 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     ),
                     subtitle: Text(
                       '${playlist.trackIds.length} tracks',
-                      style: TextStyle(color: context.colors.textMuted, fontSize: 12),
+                      style: TextStyle(
+                        color: context.colors.textMuted,
+                        fontSize: 12,
+                      ),
                     ),
                     trailing: alreadyAdded
-                        ? Text('Added', style: TextStyle(color: context.colors.success, fontSize: 12))
+                        ? Text(
+                            'Added',
+                            style: TextStyle(
+                              color: context.colors.success,
+                              fontSize: 12,
+                            ),
+                          )
                         : null,
-                    onTap: alreadyAdded ? null : () async {
-                      await LocalDatabase.addTrackToPlaylist(playlist.id!, track.id!);
-                      if (ctx.mounted) Navigator.pop(ctx);
-                      _loadData();
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Added to "${playlist.name}"'),
-                            backgroundColor: context.colors.success,
-                          ),
-                        );
-                      }
-                    },
+                    onTap: alreadyAdded
+                        ? null
+                        : () async {
+                            await LocalDatabase.addTrackToPlaylist(
+                              playlist.id!,
+                              track.id!,
+                            );
+                            if (ctx.mounted) Navigator.pop(ctx);
+                            _loadData();
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Added to "${playlist.name}"'),
+                                  backgroundColor: context.colors.success,
+                                ),
+                              );
+                            }
+                          },
                   );
                 }),
               ],
@@ -744,7 +822,9 @@ class _PlaylistCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = context.colors.markerColors[(playlist.id ?? 0) % context.colors.markerColors.length];
+    final color = context
+        .colors
+        .markerColors[(playlist.id ?? 0) % context.colors.markerColors.length];
 
     return GestureDetector(
       onTap: onTap,
@@ -753,10 +833,7 @@ class _PlaylistCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: context.colors.bgCard.withValues(alpha: 0.8),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: color.withValues(alpha: 0.25),
-            width: 0.5,
-          ),
+          border: Border.all(color: color.withValues(alpha: 0.25), width: 0.5),
         ),
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -767,11 +844,7 @@ class _PlaylistCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.folder_rounded,
-                  color: color,
-                  size: 28,
-                ),
+                Icon(Icons.folder_rounded, color: color, size: 28),
                 GestureDetector(
                   onTap: onOptionsTap,
                   behavior: HitTestBehavior.opaque,
@@ -854,7 +927,9 @@ class _TrackTile extends StatelessWidget {
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
@@ -897,7 +972,9 @@ class _TrackTile extends StatelessWidget {
                     size: 20,
                   ),
                   color: context.colors.bgCard,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   onSelected: (value) {
                     if (value == 'add') onAddToPlaylist?.call();
                     if (value == 'edit') onEditTrack?.call();
@@ -906,15 +983,24 @@ class _TrackTile extends StatelessWidget {
                   itemBuilder: (context) => [
                     PopupMenuItem(
                       value: 'add',
-                      child: Text('Add to playlist', style: TextStyle(color: context.colors.textPrimary)),
+                      child: Text(
+                        'Add to playlist',
+                        style: TextStyle(color: context.colors.textPrimary),
+                      ),
                     ),
                     PopupMenuItem(
                       value: 'edit',
-                      child: Text('Edit metadata', style: TextStyle(color: context.colors.textPrimary)),
+                      child: Text(
+                        'Edit metadata',
+                        style: TextStyle(color: context.colors.textPrimary),
+                      ),
                     ),
                     PopupMenuItem(
                       value: 'remove',
-                      child: Text('Remove from library', style: TextStyle(color: context.colors.error)),
+                      child: Text(
+                        'Remove from library',
+                        style: TextStyle(color: context.colors.error),
+                      ),
                     ),
                   ],
                 ),

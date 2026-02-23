@@ -244,7 +244,9 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
           if (_isLoading)
             SliverFillRemaining(
               child: Center(
-                child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary),
+                child: CircularProgressIndicator(
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               ),
             )
           else if (_tracks.isEmpty)
@@ -344,8 +346,13 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
       builder: (ctx) {
         return AlertDialog(
           backgroundColor: context.colors.bgCard,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text('Rename Playlist', style: TextStyle(color: context.colors.textPrimary)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'Rename Playlist',
+            style: TextStyle(color: context.colors.textPrimary),
+          ),
           content: TextField(
             controller: controller,
             autofocus: true,
@@ -360,7 +367,10 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
             ElevatedButton(
               onPressed: () async {
                 final name = controller.text.trim();
@@ -373,10 +383,12 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                   whereArgs: [_playlist.id],
                 );
                 if (ctx.mounted) Navigator.pop(ctx);
-                
+
                 // Reload playlist explicitly
                 final updated = await LocalDatabase.getAllPlaylists();
-                final current = updated.where((p) => p.id == _playlist.id).firstOrNull;
+                final current = updated
+                    .where((p) => p.id == _playlist.id)
+                    .firstOrNull;
                 if (current != null && mounted) {
                   setState(() {
                     _playlist = current;
@@ -401,14 +413,22 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
       builder: (ctx) {
         return AlertDialog(
           backgroundColor: context.colors.bgCard,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text('Delete Playlist', style: TextStyle(color: context.colors.error)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'Delete Playlist',
+            style: TextStyle(color: context.colors.error),
+          ),
           content: Text(
             'Are you sure you want to delete "${_playlist.name}"?\nThis action cannot be undone.',
             style: TextStyle(color: context.colors.textSecondary),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
             ElevatedButton(
               onPressed: () async {
                 if (ctx.mounted) Navigator.pop(ctx);
@@ -421,7 +441,10 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                 backgroundColor: context.colors.error,
                 foregroundColor: context.colors.bgDarkest,
               ),
-              child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.w600)),
+              child: const Text(
+                'Delete',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
             ),
           ],
         );
@@ -443,8 +466,10 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
     if (updatedTrack != null) {
       await LocalDatabase.updateTrack(updatedTrack);
       await _loadTracks();
-      ref.read(playerProvider.notifier).updateCurrentTrackMetadata(updatedTrack);
-      
+      ref
+          .read(playerProvider.notifier)
+          .updateCurrentTrackMetadata(updatedTrack);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -732,7 +757,9 @@ class _PlaylistTrackTile extends StatelessWidget {
                     size: 20,
                   ),
                   color: context.colors.bgCard,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   onSelected: (value) {
                     if (value == 'edit') onEdit?.call();
                     if (value == 'remove') onRemove?.call();
@@ -740,11 +767,17 @@ class _PlaylistTrackTile extends StatelessWidget {
                   itemBuilder: (context) => [
                     PopupMenuItem(
                       value: 'edit',
-                      child: Text('Edit metadata', style: TextStyle(color: context.colors.textPrimary)),
+                      child: Text(
+                        'Edit metadata',
+                        style: TextStyle(color: context.colors.textPrimary),
+                      ),
                     ),
                     PopupMenuItem(
                       value: 'remove',
-                      child: Text('Remove from playlist', style: TextStyle(color: context.colors.warning)),
+                      child: Text(
+                        'Remove from playlist',
+                        style: TextStyle(color: context.colors.warning),
+                      ),
                     ),
                   ],
                 ),

@@ -65,11 +65,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       body: Stack(
         children: [
           // Background gradient
-          Container(
-            decoration: BoxDecoration(
-              color: context.colors.bgDarkest,
-            ),
-          ),
+          Container(decoration: BoxDecoration(color: context.colors.bgDarkest)),
 
           // Main content
           SafeArea(
@@ -82,13 +78,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                   trackTitle: state.currentTrack?.title ?? 'No Track Loaded',
                   trackArtist: state.currentTrack != null
                       ? [state.currentTrack!.artist, state.currentTrack!.album]
-                          .where((s) => s.isNotEmpty && s != 'Unknown Artist')
-                          .join(' — ')
+                            .where((s) => s.isNotEmpty && s != 'Unknown Artist')
+                            .join(' — ')
                       : 'Import a track to start practicing',
                   duration: state.duration,
                   position: state.position,
                   sections: state.sections,
-                  onBackPressed: () => ref.read(navigationProvider.notifier).state = 0,
+                  onBackPressed: () =>
+                      ref.read(navigationProvider.notifier).state = 0,
                 ),
 
                 // Main waveform
@@ -116,7 +113,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
                 // Mini waveform & time
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   child: Column(
                     children: [
                       AnimatedSwitcher(
@@ -182,18 +182,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                       ? _buildExpandablePanel(
                           child: TempoControl(
                             tempo: state.settings.tempo,
-                            originalBpm: state.currentTrack?.originalBpm ?? 120.0,
+                            originalBpm:
+                                state.currentTrack?.originalBpm ?? 120.0,
                             onChanged: (v) => notifier.setTempo(v),
                           ),
                         )
                       : _showPitchPanel
-                          ? _buildExpandablePanel(
-                              child: PitchControl(
-                                pitch: state.settings.pitch,
-                                onChanged: (v) => notifier.setPitch(v),
-                              ),
-                            )
-                          : const SizedBox.shrink(),
+                      ? _buildExpandablePanel(
+                          child: PitchControl(
+                            pitch: state.settings.pitch,
+                            onChanged: (v) => notifier.setPitch(v),
+                          ),
+                        )
+                      : const SizedBox.shrink(),
                 ),
 
                 // Bottom controls
@@ -205,8 +206,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                   sectionCount: state.sections.length,
                   onTempoTap: _toggleTempoPanel,
                   onPitchTap: _togglePitchPanel,
-                  onSectionsTap: () => _showSectionsSheet(context, state, notifier),
-                  onLoopToggle: () => _showLoopSelector(context, state, notifier),
+                  onSectionsTap: () =>
+                      _showSectionsSheet(context, state, notifier),
+                  onLoopToggle: () =>
+                      _showLoopSelector(context, state, notifier),
                 ),
               ],
             ),
@@ -228,7 +231,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       ),
     );
   }
-  void _showLoopSelector(BuildContext context, PlayerState state, PlayerNotifier notifier) {
+
+  void _showLoopSelector(
+    BuildContext context,
+    PlayerState state,
+    PlayerNotifier notifier,
+  ) {
     if (state.currentTrack == null) return;
 
     final totalMs = state.duration.inMilliseconds.toDouble();
@@ -261,7 +269,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                 }
               }
               if (activeMode != 'section') {
-                if (loopStart == Duration.zero && loopEnd == currentState.duration) {
+                if (loopStart == Duration.zero &&
+                    loopEnd == currentState.duration) {
                   activeMode = 'full';
                 } else {
                   activeMode = 'custom';
@@ -343,11 +352,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                       ),
                       const SizedBox(height: 6),
                       ...currentState.sections.map((section) {
-                        final isThisSection = activeMode == 'section' && activeSectionId == section.id;
+                        final isThisSection =
+                            activeMode == 'section' &&
+                            activeSectionId == section.id;
                         return _LoopOptionTile(
                           icon: Icons.bookmark_rounded,
                           label: section.label,
-                          subtitle: '${_formatDuration(section.startTime)} → ${_formatDuration(section.endTime)}',
+                          subtitle:
+                              '${_formatDuration(section.startTime)} → ${_formatDuration(section.endTime)}',
                           isActive: isThisSection,
                           color: section.color,
                           onTap: () {
@@ -371,7 +383,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                       color: AppColors.markerOrange,
                       onTap: () {
                         Navigator.pop(ctx);
-                        _showCustomLoopDialog(context, state, notifier, totalMs);
+                        _showCustomLoopDialog(
+                          context,
+                          state,
+                          notifier,
+                          totalMs,
+                        );
                       },
                     ),
 
@@ -386,10 +403,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     );
   }
 
-  void _showCustomLoopDialog(BuildContext context, PlayerState state, PlayerNotifier notifier, double totalMs) {
-    double startMs = state.settings.loopStart?.inMilliseconds.toDouble() ??
+  void _showCustomLoopDialog(
+    BuildContext context,
+    PlayerState state,
+    PlayerNotifier notifier,
+    double totalMs,
+  ) {
+    double startMs =
+        state.settings.loopStart?.inMilliseconds.toDouble() ??
         state.position.inMilliseconds.toDouble().clamp(0, totalMs);
-    double endMs = state.settings.loopEnd?.inMilliseconds.toDouble() ??
+    double endMs =
+        state.settings.loopEnd?.inMilliseconds.toDouble() ??
         (startMs + 30000).clamp(0, totalMs);
 
     showDialog(
@@ -399,10 +423,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           builder: (ctx, setDialogState) {
             return AlertDialog(
               backgroundColor: context.colors.bgCard,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               title: Text(
                 'Custom Loop Range',
-                style: TextStyle(color: context.colors.textPrimary, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: context.colors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               content: SizedBox(
                 width: 400,
@@ -458,7 +487,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                     Center(
                       child: Text(
                         'Loop duration: ${_formatDurationPrecise(Duration(milliseconds: (endMs - startMs).round()))}',
-                        style: TextStyle(color: context.colors.textMuted, fontSize: 11),
+                        style: TextStyle(
+                          color: context.colors.textMuted,
+                          fontSize: 11,
+                        ),
                       ),
                     ),
                   ],
@@ -484,7 +516,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: const Text('Set Loop', style: TextStyle(fontWeight: FontWeight.w600)),
+                  child: const Text(
+                    'Set Loop',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
                 ),
               ],
             );
@@ -494,7 +529,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     );
   }
 
-  void _showSectionsSheet(BuildContext context, PlayerState state, PlayerNotifier notifier) {
+  void _showSectionsSheet(
+    BuildContext context,
+    PlayerState state,
+    PlayerNotifier notifier,
+  ) {
     if (state.currentTrack == null) return;
 
     showModalBottomSheet(
@@ -506,7 +545,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       ),
       builder: (sheetContext) {
         return StatefulBuilder(
-          builder: (context, setSheetState) {
+          builder: (ctx, setSheetState) {
             // Re-read sections from provider
             final currentState = ref.read(playerProvider);
             final sections = currentState.sections;
@@ -522,7 +561,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                       width: 40,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: context.colors.surfaceBorder,
+                        color: ctx.colors.surfaceBorder,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -535,25 +574,31 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                         Text(
                           'Sections',
                           style: TextStyle(
-                            color: context.colors.textPrimary,
+                            color: ctx.colors.textPrimary,
                             fontSize: 20,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         IconButton(
                           onPressed: () {
-                            Navigator.pop(context);
-                            _showAddSectionDialog(context, state, notifier);
+                            Navigator.pop(ctx);
+                            _showAddSectionDialog(
+                              this.context,
+                              state,
+                              notifier,
+                            );
                           },
                           icon: Container(
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+                              color: Theme.of(
+                                ctx,
+                              ).colorScheme.primary.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Icon(
                               Icons.add_rounded,
-                              color: Theme.of(context).colorScheme.primary,
+                              color: Theme.of(ctx).colorScheme.primary,
                               size: 20,
                             ),
                           ),
@@ -569,19 +614,27 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                           children: [
                             Icon(
                               Icons.bookmarks_outlined,
-                              color: context.colors.textMuted.withValues(alpha: 0.5),
+                              color: ctx.colors.textMuted.withValues(
+                                alpha: 0.5,
+                              ),
                               size: 40,
                             ),
                             const SizedBox(height: 12),
                             Text(
                               'No sections yet',
-                              style: TextStyle(color: context.colors.textMuted, fontSize: 14),
+                              style: TextStyle(
+                                color: ctx.colors.textMuted,
+                                fontSize: 14,
+                              ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               'Add sections to mark parts of the song\n(Verse, Chorus, Solo, etc.)',
                               textAlign: TextAlign.center,
-                              style: TextStyle(color: context.colors.textDisabled, fontSize: 12),
+                              style: TextStyle(
+                                color: ctx.colors.textDisabled,
+                                fontSize: 12,
+                              ),
                             ),
                           ],
                         ),
@@ -594,19 +647,23 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                           itemCount: sections.length,
                           itemBuilder: (context, index) {
                             final section = sections[index];
-                            final isActive = currentState.position >= section.startTime &&
+                            final isActive =
+                                currentState.position >= section.startTime &&
                                 currentState.position <= section.endTime;
                             return _SectionTile(
                               section: section,
                               isActive: isActive,
                               onTap: () {
                                 notifier.seekToSection(section);
-                                Navigator.pop(context);
+                                Navigator.pop(ctx);
                               },
                               onEdit: () {
-                                Navigator.pop(context);
+                                Navigator.pop(ctx);
                                 _showEditSectionDialog(
-                                  this.context, state, notifier, section,
+                                  this.context,
+                                  state,
+                                  notifier,
+                                  section,
                                 );
                               },
                               onDelete: () async {
@@ -625,14 +682,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                       width: double.infinity,
                       child: OutlinedButton.icon(
                         onPressed: () {
-                          Navigator.pop(context);
-                          _showAddSectionDialog(context, state, notifier);
+                          Navigator.pop(ctx);
+                          _showAddSectionDialog(this.context, state, notifier);
                         },
                         icon: const Icon(Icons.add_rounded),
                         label: const Text('Add Section'),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Theme.of(context).colorScheme.primary,
-                          side: BorderSide(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4)),
+                          foregroundColor: Theme.of(ctx).colorScheme.primary,
+                          side: BorderSide(
+                            color: Theme.of(
+                              ctx,
+                            ).colorScheme.primary.withValues(alpha: 0.4),
+                          ),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -652,7 +713,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     );
   }
 
-  void _showAddSectionDialog(BuildContext context, PlayerState state, PlayerNotifier notifier) {
+  void _showAddSectionDialog(
+    BuildContext context,
+    PlayerState state,
+    PlayerNotifier notifier,
+  ) {
     _showSectionDialog(
       context: context,
       state: state,
@@ -662,7 +727,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     );
   }
 
-  void _showEditSectionDialog(BuildContext context, PlayerState state, PlayerNotifier notifier, Section section) {
+  void _showEditSectionDialog(
+    BuildContext context,
+    PlayerState state,
+    PlayerNotifier notifier,
+    Section section,
+  ) {
     _showSectionDialog(
       context: context,
       state: state,
@@ -689,9 +759,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     final nameController = TextEditingController(
       text: existingSection?.label ?? '',
     );
-    double startMs = existingSection?.startTime.inMilliseconds.toDouble() ??
+    double startMs =
+        existingSection?.startTime.inMilliseconds.toDouble() ??
         state.position.inMilliseconds.toDouble().clamp(0, totalMs);
-    double endMs = existingSection?.endTime.inMilliseconds.toDouble() ??
+    double endMs =
+        existingSection?.endTime.inMilliseconds.toDouble() ??
         (startMs + 30000).clamp(0, totalMs);
 
     int selectedColorIndex = 0;
@@ -701,10 +773,21 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       );
       selectedColorIndex = idx >= 0 ? idx : 0;
     } else {
-      selectedColorIndex = state.sections.length % context.colors.markerColors.length;
+      selectedColorIndex =
+          state.sections.length % context.colors.markerColors.length;
     }
 
-    final sectionLabels = ['Intro', 'Verse', 'Pre-Chorus', 'Chorus', 'Bridge', 'Solo', 'Outro', 'Riff', 'Break'];
+    final sectionLabels = [
+      'Intro',
+      'Verse',
+      'Pre-Chorus',
+      'Chorus',
+      'Bridge',
+      'Solo',
+      'Outro',
+      'Riff',
+      'Break',
+    ];
 
     showDialog(
       context: context,
@@ -713,10 +796,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           builder: (ctx, setDialogState) {
             return AlertDialog(
               backgroundColor: context.colors.bgCard,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               title: Text(
                 title,
-                style: TextStyle(color: context.colors.textPrimary, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: context.colors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               content: SizedBox(
                 width: 400,
@@ -732,9 +820,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                         style: TextStyle(color: context.colors.textPrimary),
                         decoration: InputDecoration(
                           labelText: 'Section Name',
-                          labelStyle: TextStyle(color: context.colors.textMuted),
+                          labelStyle: TextStyle(
+                            color: context.colors.textMuted,
+                          ),
                           hintText: 'e.g. Verse 1, Chorus, Solo...',
-                          hintStyle: TextStyle(color: context.colors.textMuted.withValues(alpha: 0.5)),
+                          hintStyle: TextStyle(
+                            color: context.colors.textMuted.withValues(
+                              alpha: 0.5,
+                            ),
+                          ),
                           filled: true,
                           fillColor: context.colors.bgDark,
                           border: OutlineInputBorder(
@@ -757,14 +851,20 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                               setDialogState(() {});
                             },
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
                               decoration: BoxDecoration(
                                 color: context.colors.bgMedium,
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
                                   color: nameController.text == label
-                                      ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)
-                                      : context.colors.surfaceBorder.withValues(alpha: 0.3),
+                                      ? Theme.of(context).colorScheme.primary
+                                            .withValues(alpha: 0.5)
+                                      : context.colors.surfaceBorder.withValues(
+                                          alpha: 0.3,
+                                        ),
                                 ),
                               ),
                               child: Text(
@@ -787,14 +887,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                       // Color picker
                       Text(
                         'Color',
-                        style: TextStyle(color: context.colors.textSecondary, fontSize: 12),
+                        style: TextStyle(
+                          color: context.colors.textSecondary,
+                          fontSize: 12,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Row(
                         children: List.generate(
                           context.colors.markerColors.length,
                           (i) => GestureDetector(
-                            onTap: () => setDialogState(() => selectedColorIndex = i),
+                            onTap: () =>
+                                setDialogState(() => selectedColorIndex = i),
                             child: Container(
                               width: 28,
                               height: 28,
@@ -803,13 +907,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                                 color: context.colors.markerColors[i],
                                 shape: BoxShape.circle,
                                 border: selectedColorIndex == i
-                                    ? Border.all(color: Colors.white, width: 2.5)
+                                    ? Border.all(
+                                        color: Colors.white,
+                                        width: 2.5,
+                                      )
                                     : null,
                                 boxShadow: selectedColorIndex == i
-                                    ? [BoxShadow(
-                                        color: context.colors.markerColors[i].withValues(alpha: 0.4),
-                                        blurRadius: 8,
-                                      )]
+                                    ? [
+                                        BoxShadow(
+                                          color: context.colors.markerColors[i]
+                                              .withValues(alpha: 0.4),
+                                          blurRadius: 8,
+                                        ),
+                                      ]
                                     : null,
                               ),
                             ),
@@ -875,7 +985,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                       Center(
                         child: Text(
                           'Duration: ${_formatDurationPrecise(Duration(milliseconds: (endMs - startMs).round()))}',
-                          style: TextStyle(color: context.colors.textMuted, fontSize: 11),
+                          style: TextStyle(
+                            color: context.colors.textMuted,
+                            fontSize: 11,
+                          ),
                         ),
                       ),
                     ],
@@ -899,7 +1012,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                           label: name,
                           startTime: Duration(milliseconds: startMs.round()),
                           endTime: Duration(milliseconds: endMs.round()),
-                          color: context.colors.markerColors[selectedColorIndex],
+                          color:
+                              context.colors.markerColors[selectedColorIndex],
                         ),
                       );
                     } else {
@@ -908,7 +1022,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                         name,
                         Duration(milliseconds: startMs.round()),
                         Duration(milliseconds: endMs.round()),
-                        context.colors.markerColors[selectedColorIndex].toARGB32(),
+                        context.colors.markerColors[selectedColorIndex]
+                            .toARGB32(),
                       );
                     }
                     if (ctx.mounted) Navigator.pop(ctx);
@@ -920,7 +1035,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: Text(confirmLabel, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  child: Text(
+                    confirmLabel,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
                 ),
               ],
             );
@@ -1069,7 +1187,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['mp3', 'flac', 'wav', 'ogg', 'aac', 'm4a', 'opus', 'wma', 'aiff'],
+        allowedExtensions: [
+          'mp3',
+          'flac',
+          'wav',
+          'ogg',
+          'aac',
+          'm4a',
+          'opus',
+          'wma',
+          'aiff',
+        ],
         dialogTitle: 'Select an audio file',
       );
       return result?.files.single.path;
@@ -1196,10 +1324,7 @@ class _ImportTrackButtonState extends State<_ImportTrackButton>
     return _PulseAnimatedBuilder(
       listenable: _pulseAnimation,
       builder: (context, child) {
-        return Transform.scale(
-          scale: _pulseAnimation.value,
-          child: child,
-        );
+        return Transform.scale(scale: _pulseAnimation.value, child: child);
       },
       child: GestureDetector(
         onTap: widget.onPressed,
@@ -1210,7 +1335,9 @@ class _ImportTrackButtonState extends State<_ImportTrackButton>
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                color: Theme.of(
+                  context,
+                ).colorScheme.primary.withValues(alpha: 0.3),
                 blurRadius: 24,
                 spreadRadius: 4,
               ),
@@ -1219,7 +1346,11 @@ class _ImportTrackButtonState extends State<_ImportTrackButton>
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.add_rounded, color: context.colors.bgDarkest, size: 24),
+              Icon(
+                Icons.add_rounded,
+                color: context.colors.bgDarkest,
+                size: 24,
+              ),
               SizedBox(width: 8),
               Text(
                 'Import Track',
@@ -1339,7 +1470,9 @@ class _SectionTile extends StatelessWidget {
                       Text(
                         section.label,
                         style: TextStyle(
-                          color: isActive ? section.color : context.colors.textPrimary,
+                          color: isActive
+                              ? section.color
+                              : context.colors.textPrimary,
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1365,7 +1498,10 @@ class _SectionTile extends StatelessWidget {
                     color: isActive ? section.color : context.colors.textMuted,
                     size: 18,
                   ),
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
                   padding: EdgeInsets.zero,
                   tooltip: 'Edit section',
                 ),
@@ -1378,7 +1514,10 @@ class _SectionTile extends StatelessWidget {
                     color: context.colors.textMuted.withValues(alpha: 0.6),
                     size: 18,
                   ),
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
                   padding: EdgeInsets.zero,
                   tooltip: 'Delete section',
                 ),
@@ -1464,11 +1603,7 @@ class _LoopOptionTile extends StatelessWidget {
                   ),
                 ),
                 if (isActive)
-                  Icon(
-                    Icons.check_circle_rounded,
-                    color: color,
-                    size: 20,
-                  ),
+                  Icon(Icons.check_circle_rounded, color: color, size: 20),
               ],
             ),
           ),
@@ -1511,11 +1646,20 @@ class _TimeInputRow extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label, style: TextStyle(color: context.colors.textSecondary, fontSize: 12)),
+            Text(
+              label,
+              style: TextStyle(
+                color: context.colors.textSecondary,
+                fontSize: 12,
+              ),
+            ),
             GestureDetector(
               onTap: () => _showTimeInputDialog(context),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: context.colors.bgDark,
                   borderRadius: BorderRadius.circular(6),
@@ -1569,15 +1713,21 @@ class _TimeInputRow extends StatelessWidget {
 
   void _showTimeInputDialog(BuildContext context) {
     final d = Duration(milliseconds: durationMs.round());
-    final minCtrl = TextEditingController(text: d.inMinutes.remainder(60).toString());
-    final secCtrl = TextEditingController(text: d.inSeconds.remainder(60).toString());
+    final minCtrl = TextEditingController(
+      text: d.inMinutes.remainder(60).toString(),
+    );
+    final secCtrl = TextEditingController(
+      text: d.inSeconds.remainder(60).toString(),
+    );
 
     showDialog(
       context: context,
       builder: (dialogCtx) {
         return AlertDialog(
           backgroundColor: context.colors.bgCard,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           title: Text(
             'Set $label Time',
             style: TextStyle(color: context.colors.textPrimary, fontSize: 16),
@@ -1598,7 +1748,10 @@ class _TimeInputRow extends StatelessWidget {
                   ),
                   decoration: InputDecoration(
                     labelText: 'Min',
-                    labelStyle: TextStyle(color: context.colors.textMuted, fontSize: 11),
+                    labelStyle: TextStyle(
+                      color: context.colors.textMuted,
+                      fontSize: 11,
+                    ),
                     filled: true,
                     fillColor: context.colors.bgDark,
                     border: OutlineInputBorder(
@@ -1632,7 +1785,10 @@ class _TimeInputRow extends StatelessWidget {
                   ),
                   decoration: InputDecoration(
                     labelText: 'Sec',
-                    labelStyle: TextStyle(color: context.colors.textMuted, fontSize: 11),
+                    labelStyle: TextStyle(
+                      color: context.colors.textMuted,
+                      fontSize: 11,
+                    ),
                     filled: true,
                     fillColor: context.colors.bgDark,
                     border: OutlineInputBorder(
