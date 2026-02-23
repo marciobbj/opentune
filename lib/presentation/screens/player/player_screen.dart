@@ -160,17 +160,73 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                   ),
                 ),
 
-                // Transport controls
+                // Player Controls & Volume
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: TransportControls(
-                    isPlaying: state.isPlaying,
-                    isLoading: state.isLoading,
-                    onPlayPause: () => notifier.togglePlayPause(),
-                    onSkipForward: () => notifier.skipForward(),
-                    onSkipBackward: () => notifier.skipBackward(),
-                    onSkipToStart: () => notifier.skipToPreviousTrack(),
-                    onSkipToEnd: () => notifier.skipToNextTrack(),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Centralized transport controls
+                      TransportControls(
+                        isPlaying: state.isPlaying,
+                        isLoading: state.isLoading,
+                        onPlayPause: () => notifier.togglePlayPause(),
+                        onSkipForward: () => notifier.skipForward(),
+                        onSkipBackward: () => notifier.skipBackward(),
+                        onSkipToStart: () => notifier.skipToPreviousTrack(),
+                        onSkipToEnd: () => notifier.skipToNextTrack(),
+                      ),
+
+                      // Compact volume slider on the right
+                      Positioned(
+                        right: 20,
+                        child: SizedBox(
+                          width: 100,
+                          child: Row(
+                            children: [
+                              Icon(
+                                state.volume == 0
+                                    ? Icons.volume_off_rounded
+                                    : state.volume < 0.5
+                                    ? Icons.volume_down_rounded
+                                    : Icons.volume_up_rounded,
+                                color: context.colors.textMuted.withValues(
+                                  alpha: 0.6,
+                                ),
+                                size: 14,
+                              ),
+                              Expanded(
+                                child: SliderTheme(
+                                  data: SliderTheme.of(context).copyWith(
+                                    trackHeight: 2,
+                                    thumbShape: const RoundSliderThumbShape(
+                                      enabledThumbRadius: 3.5,
+                                    ),
+                                    overlayShape: const RoundSliderOverlayShape(
+                                      overlayRadius: 10,
+                                    ),
+                                    activeTrackColor: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                    inactiveTrackColor: context
+                                        .colors
+                                        .surfaceBorder
+                                        .withValues(alpha: 0.15),
+                                    thumbColor: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                  ),
+                                  child: Slider(
+                                    value: state.volume,
+                                    onChanged: (v) => notifier.setVolume(v),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 
@@ -1495,31 +1551,19 @@ class _SectionTile extends StatelessWidget {
                   onPressed: onEdit,
                   icon: Icon(
                     Icons.edit_rounded,
-                    color: isActive ? section.color : context.colors.textMuted,
+                    color: context.colors.textMuted,
                     size: 18,
                   ),
-                  constraints: const BoxConstraints(
-                    minWidth: 32,
-                    minHeight: 32,
-                  ),
-                  padding: EdgeInsets.zero,
-                  tooltip: 'Edit section',
                 ),
 
                 // Delete
                 IconButton(
                   onPressed: onDelete,
                   icon: Icon(
-                    Icons.close_rounded,
-                    color: context.colors.textMuted.withValues(alpha: 0.6),
+                    Icons.delete_outline_rounded,
+                    color: context.colors.error.withValues(alpha: 0.7),
                     size: 18,
                   ),
-                  constraints: const BoxConstraints(
-                    minWidth: 32,
-                    minHeight: 32,
-                  ),
-                  padding: EdgeInsets.zero,
-                  tooltip: 'Delete section',
                 ),
               ],
             ),
@@ -1530,14 +1574,13 @@ class _SectionTile extends StatelessWidget {
   }
 }
 
-/// A row with label, editable time display, and slider
 class _LoopOptionTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final String subtitle;
   final bool isActive;
   final Color color;
-  final VoidCallback? onTap;
+  final VoidCallback onTap;
 
   const _LoopOptionTile({
     required this.icon,
@@ -1545,69 +1588,44 @@ class _LoopOptionTile extends StatelessWidget {
     required this.subtitle,
     required this.isActive,
     required this.color,
-    this.onTap,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 6),
+      margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: isActive
             ? color.withValues(alpha: 0.1)
             : context.colors.bgMedium.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isActive
-              ? color.withValues(alpha: 0.5)
-              : context.colors.surfaceBorder.withValues(alpha: 0.15),
-          width: isActive ? 1.5 : 0.5,
+          color: isActive ? color.withValues(alpha: 0.5) : Colors.transparent,
+          width: 1,
         ),
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  color: isActive ? color : context.colors.textMuted,
-                  size: 20,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        label,
-                        style: TextStyle(
-                          color: isActive ? color : context.colors.textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          color: context.colors.textMuted,
-                          fontSize: 11,
-                          fontFeatures: [FontFeature.tabularFigures()],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (isActive)
-                  Icon(Icons.check_circle_rounded, color: color, size: 20),
-              ],
-            ),
+      child: ListTile(
+        onTap: onTap,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        leading: Icon(icon, color: isActive ? color : context.colors.textMuted),
+        title: Text(
+          label,
+          style: TextStyle(
+            color: isActive
+                ? context.colors.textPrimary
+                : context.colors.textSecondary,
+            fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+            fontSize: 14,
           ),
         ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(color: context.colors.textMuted, fontSize: 11),
+        ),
+        trailing: isActive
+            ? Icon(Icons.check_circle_rounded, color: color, size: 20)
+            : null,
       ),
     );
   }
@@ -1650,59 +1668,46 @@ class _TimeInputRow extends StatelessWidget {
               label,
               style: TextStyle(
                 color: context.colors.textSecondary,
-                fontSize: 12,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
               ),
             ),
             GestureDetector(
-              onTap: () => _showTimeInputDialog(context),
+              onTap: () async {
+                final result = await _showTimeEditDialog(context);
+                if (result != null) onTimeEdited(result);
+              },
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: context.colors.bgDark,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: context.colors.surfaceBorder.withValues(alpha: 0.4),
-                  ),
+                  color: context.colors.bgMedium,
+                  borderRadius: BorderRadius.circular(4),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _formatTime(durationMs),
-                      style: TextStyle(
-                        color: context.colors.textPrimary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        fontFeatures: [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.edit_rounded,
-                      color: context.colors.textMuted.withValues(alpha: 0.6),
-                      size: 12,
-                    ),
-                  ],
+                child: Text(
+                  _formatTime(durationMs),
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
                 ),
               ),
             ),
           ],
         ),
         SliderTheme(
-          data: SliderThemeData(
+          data: SliderTheme.of(context).copyWith(
+            trackHeight: 2,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
             activeTrackColor: color,
-            inactiveTrackColor: context.colors.surfaceBorder,
+            inactiveTrackColor: context.colors.surfaceBorder.withValues(
+              alpha: 0.3,
+            ),
             thumbColor: color,
-            overlayColor: color.withValues(alpha: 0.12),
-            trackHeight: 3,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
           ),
           child: Slider(
-            value: durationMs.clamp(0, totalMs),
-            min: 0,
+            value: durationMs,
             max: totalMs,
             onChanged: onSliderChanged,
           ),
@@ -1711,117 +1716,56 @@ class _TimeInputRow extends StatelessWidget {
     );
   }
 
-  void _showTimeInputDialog(BuildContext context) {
+  Future<double?> _showTimeEditDialog(BuildContext context) async {
     final d = Duration(milliseconds: durationMs.round());
-    final minCtrl = TextEditingController(
-      text: d.inMinutes.remainder(60).toString(),
-    );
-    final secCtrl = TextEditingController(
+    final minController = TextEditingController(text: d.inMinutes.toString());
+    final secController = TextEditingController(
       text: d.inSeconds.remainder(60).toString(),
     );
 
-    showDialog(
+    return showDialog<double>(
       context: context,
-      builder: (dialogCtx) {
-        return AlertDialog(
-          backgroundColor: context.colors.bgCard,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          title: Text(
-            'Set $label Time',
-            style: TextStyle(color: context.colors.textPrimary, fontSize: 16),
-          ),
-          content: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: 60,
-                child: TextField(
-                  controller: minCtrl,
-                  keyboardType: TextInputType.number,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: context.colors.textPrimary,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  decoration: InputDecoration(
-                    labelText: 'Min',
-                    labelStyle: TextStyle(
-                      color: context.colors.textMuted,
-                      fontSize: 11,
-                    ),
-                    filled: true,
-                    fillColor: context.colors.bgDark,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.colors.bgCard,
+        title: Text('Set $label', style: TextStyle(fontSize: 16)),
+        content: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Expanded(
+              child: TextField(
+                controller: minController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(labelText: 'Min'),
+                autofocus: true,
               ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8),
-                child: Text(
-                  ':',
-                  style: TextStyle(
-                    color: context.colors.textPrimary,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              SizedBox(
-                width: 60,
-                child: TextField(
-                  controller: secCtrl,
-                  keyboardType: TextInputType.number,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: context.colors.textPrimary,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  decoration: InputDecoration(
-                    labelText: 'Sec',
-                    labelStyle: TextStyle(
-                      color: context.colors.textMuted,
-                      fontSize: 11,
-                    ),
-                    filled: true,
-                    fillColor: context.colors.bgDark,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogCtx),
-              child: const Text('Cancel'),
             ),
-            ElevatedButton(
-              onPressed: () {
-                final mins = int.tryParse(minCtrl.text) ?? 0;
-                final secs = int.tryParse(secCtrl.text) ?? 0;
-                final ms = ((mins * 60) + secs) * 1000;
-                onTimeEdited(ms.toDouble());
-                Navigator.pop(dialogCtx);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: color,
-                foregroundColor: context.colors.bgDarkest,
+            const SizedBox(width: 12),
+            Text(':', style: TextStyle(fontSize: 20)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                controller: secController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(labelText: 'Sec'),
               ),
-              child: const Text('Set'),
             ),
           ],
-        );
-      },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              final m = int.tryParse(minController.text) ?? 0;
+              final s = int.tryParse(secController.text) ?? 0;
+              Navigator.pop(ctx, (m * 60 + s) * 1000.0);
+            },
+            child: Text('OK'),
+          ),
+        ],
+      ),
     );
   }
 }

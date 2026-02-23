@@ -30,6 +30,7 @@ class PlayerState {
   final Duration bufferedPosition;
   final List<Track> queue;
   final int queueIndex;
+  final double volume;
 
   const PlayerState({
     this.currentTrack,
@@ -43,12 +44,12 @@ class PlayerState {
     this.bufferedPosition = Duration.zero,
     this.queue = const [],
     this.queueIndex = 0,
+    this.volume = 1.0,
   });
 
-  double get progress =>
-      duration.inMilliseconds > 0
-          ? position.inMilliseconds / duration.inMilliseconds
-          : 0.0;
+  double get progress => duration.inMilliseconds > 0
+      ? position.inMilliseconds / duration.inMilliseconds
+      : 0.0;
 
   bool get hasNext => queue.isNotEmpty && queueIndex < queue.length - 1;
   bool get hasPrevious => queue.isNotEmpty && queueIndex > 0;
@@ -66,6 +67,7 @@ class PlayerState {
     Duration? bufferedPosition,
     List<Track>? queue,
     int? queueIndex,
+    double? volume,
   }) {
     return PlayerState(
       currentTrack: currentTrack ?? this.currentTrack,
@@ -79,6 +81,7 @@ class PlayerState {
       bufferedPosition: bufferedPosition ?? this.bufferedPosition,
       queue: queue ?? this.queue,
       queueIndex: queueIndex ?? this.queueIndex,
+      volume: volume ?? this.volume,
     );
   }
 }
@@ -121,6 +124,12 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     );
 
     _subscriptions.add(
+      _player.volumeStream.listen((vol) {
+        state = state.copyWith(volume: vol);
+      }),
+    );
+
+    _subscriptions.add(
       _player.playerStateStream.listen((playerState) {
         if (playerState.processingState == ProcessingState.completed) {
           if (state.settings.loopEnabled && state.settings.hasLoop) {
@@ -146,7 +155,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     if (state.currentTrack?.id == updatedTrack.id) {
       state = state.copyWith(currentTrack: updatedTrack);
     }
-    
+
     // Also update in queue if exists
     final qIndex = state.queue.indexWhere((t) => t.id == updatedTrack.id);
     if (qIndex != -1) {
@@ -157,13 +166,16 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   Future<void> loadTrack(Track track) async {
-    state = state.copyWith(isLoading: true, currentTrack: track, clearWaveform: true);
+    state = state.copyWith(
+      isLoading: true,
+      currentTrack: track,
+      clearWaveform: true,
+    );
 
     try {
       // Load saved settings
       final savedSettings = await LocalDatabase.getTrackSettings(track.id!);
-      final settings = savedSettings ??
-          TrackSettings(trackId: track.id!);
+      final settings = savedSettings ?? TrackSettings(trackId: track.id!);
 
       // Load sections
       final sections = await LocalDatabase.getSectionsForTrack(track.id!);
@@ -213,7 +225,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   Future<void> skipToPreviousTrack() async {
-    // If the track just started, go to previous track. 
+    // If the track just started, go to previous track.
     // Otherwise, behavior of typical "previous" button is to restart current track.
     if (state.position.inSeconds > 3 || !state.hasPrevious) {
       await seek(Duration.zero);
@@ -262,12 +274,16 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     await seek(position);
   }
 
-  Future<void> skipForward([Duration amount = const Duration(seconds: 10)]) async {
+  Future<void> skipForward([
+    Duration amount = const Duration(seconds: 10),
+  ]) async {
     final newPos = state.position + amount;
     await seek(newPos > state.duration ? state.duration : newPos);
   }
 
-  Future<void> skipBackward([Duration amount = const Duration(seconds: 10)]) async {
+  Future<void> skipBackward([
+    Duration amount = const Duration(seconds: 10),
+  ]) async {
     final newPos = state.position - amount;
     await seek(newPos < Duration.zero ? Duration.zero : newPos);
   }
@@ -293,9 +309,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   Future<void> setTempo(double tempo) async {
     final clamped = tempo.clamp(0.25, 2.0);
     await _player.setSpeed(clamped);
-    state = state.copyWith(
-      settings: state.settings.copyWith(tempo: clamped),
-    );
+    state = state.copyWith(settings: state.settings.copyWith(tempo: clamped));
     _saveCurrentState();
   }
 
@@ -306,9 +320,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     // Convert semitones to pitch factor: 2^(semitones/12)
     final pitchFactor = _semitonesToPitch(clamped);
     await _player.setPitch(pitchFactor);
-    state = state.copyWith(
-      settings: state.settings.copyWith(pitch: clamped),
-    );
+    state = state.copyWith(settings: state.settings.copyWith(pitch: clamped));
     _saveCurrentState();
   }
 
@@ -316,12 +328,21 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     return math.pow(2.0, semitones / 12.0).toDouble();
   }
 
+  // ── Volume ──
+
+  Future<void> setVolume(double volume) async {
+    final clamped = volume.clamp(0.0, 1.0);
+    await _player.setVolume(clamped);
+    state = state.copyWith(volume: clamped);
+  }
+
   // ── Loop ──
 
   /// Find the section that contains the current playback position
   Section? _findActiveSection() {
     for (final section in state.sections) {
-      if (state.position >= section.startTime && state.position <= section.endTime) {
+      if (state.position >= section.startTime &&
+          state.position <= section.endTime) {
         return section;
       }
     }
@@ -332,10 +353,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     if (state.settings.loopEnabled) {
       // Disable loop
       state = state.copyWith(
-        settings: state.settings.copyWith(
-          loopEnabled: false,
-          clearLoop: true,
-        ),
+        settings: state.settings.copyWith(loopEnabled: false, clearLoop: true),
       );
     } else {
       // Enable loop — find active section or loop entire track
@@ -404,7 +422,12 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
   // ── Sections ──
 
-  Future<void> addSection(String label, Duration start, Duration end, int colorValue) async {
+  Future<void> addSection(
+    String label,
+    Duration start,
+    Duration end,
+    int colorValue,
+  ) async {
     if (state.currentTrack == null) return;
     final section = Section(
       trackId: state.currentTrack!.id!,
@@ -422,10 +445,11 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     await LocalDatabase.updateSection(section);
     await _reloadSections();
     // If loop was set to this section, update loop bounds
-    if (state.settings.loopEnabled &&
-        state.settings.loopStart != null) {
+    if (state.settings.loopEnabled && state.settings.loopStart != null) {
       // Check if the current loop matches any section that was just updated
-      final updated = state.sections.where((s) => s.id == section.id).firstOrNull;
+      final updated = state.sections
+          .where((s) => s.id == section.id)
+          .firstOrNull;
       if (updated != null) {
         state = state.copyWith(
           settings: state.settings.copyWith(
@@ -444,7 +468,9 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
   Future<void> _reloadSections() async {
     if (state.currentTrack != null) {
-      final sections = await LocalDatabase.getSectionsForTrack(state.currentTrack!.id!);
+      final sections = await LocalDatabase.getSectionsForTrack(
+        state.currentTrack!.id!,
+      );
       state = state.copyWith(sections: sections);
     }
   }
@@ -459,9 +485,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
   Future<void> _saveCurrentState() async {
     if (state.currentTrack == null) return;
-    final settings = state.settings.copyWith(
-      lastPosition: state.position,
-    );
+    final settings = state.settings.copyWith(lastPosition: state.position);
     await LocalDatabase.upsertTrackSettings(settings);
   }
 
@@ -476,8 +500,9 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 }
 
 // ── Provider ──
-final playerProvider =
-    StateNotifierProvider<PlayerNotifier, PlayerState>((ref) {
+final playerProvider = StateNotifierProvider<PlayerNotifier, PlayerState>((
+  ref,
+) {
   final player = ref.watch(audioPlayerProvider);
   return PlayerNotifier(player);
 });

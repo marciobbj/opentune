@@ -44,7 +44,7 @@ class TransportControls extends StatelessWidget {
 
         const SizedBox(width: 16),
 
-        // Play / Pause (large, glowing)
+        // Play / Pause (large)
         _PlayPauseButton(
           isPlaying: isPlaying,
           isLoading: isLoading,
@@ -78,11 +78,7 @@ class _TransportButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final double size;
 
-  const _TransportButton({
-    required this.icon,
-    this.onPressed,
-    this.size = 24,
-  });
+  const _TransportButton({required this.icon, this.onPressed, this.size = 24});
 
   @override
   Widget build(BuildContext context) {
@@ -93,11 +89,7 @@ class _TransportButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(50),
         child: Padding(
           padding: const EdgeInsets.all(10),
-          child: Icon(
-            icon,
-            color: context.colors.textSecondary,
-            size: size,
-          ),
+          child: Icon(icon, color: context.colors.textSecondary, size: size),
         ),
       ),
     );
@@ -154,10 +146,7 @@ class _PlayPauseButtonState extends State<_PlayPauseButton>
       child: _ScaleAnimatedWidget(
         listenable: _scaleAnimation,
         builder: (context, child) {
-          return Transform.scale(
-            scale: _scaleAnimation.value,
-            child: child,
-          );
+          return Transform.scale(scale: _scaleAnimation.value, child: child);
         },
         child: Container(
           width: 64,
@@ -165,18 +154,6 @@ class _PlayPauseButtonState extends State<_PlayPauseButton>
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: Theme.of(context).colorScheme.primary,
-            boxShadow: [
-              BoxShadow(
-                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
-                blurRadius: 20,
-                spreadRadius: 2,
-              ),
-              BoxShadow(
-                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
-                blurRadius: 40,
-                spreadRadius: 5,
-              ),
-            ],
           ),
           child: widget.isLoading
               ? Padding(
