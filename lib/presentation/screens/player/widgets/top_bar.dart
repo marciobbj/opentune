@@ -8,8 +8,10 @@ class TopBar extends StatelessWidget {
   final Duration duration;
   final Duration position;
   final List<Section> sections;
-  final VoidCallback? onMenuPressed;
+  final VoidCallback? onQueueToggle;
   final VoidCallback? onBackPressed;
+  final bool isQueueOpen;
+  final int queueCount;
 
   const TopBar({
     super.key,
@@ -18,8 +20,10 @@ class TopBar extends StatelessWidget {
     required this.duration,
     required this.position,
     this.sections = const [],
-    this.onMenuPressed,
+    this.onQueueToggle,
     this.onBackPressed,
+    this.isQueueOpen = false,
+    this.queueCount = 0,
   });
 
   @override
@@ -73,9 +77,28 @@ class TopBar extends StatelessWidget {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.more_vert_rounded, size: 20),
-                color: context.colors.textSecondary,
-                onPressed: onMenuPressed,
+                icon: Badge(
+                  isLabelVisible: queueCount > 0 && !isQueueOpen,
+                  label: Text(
+                    '$queueCount',
+                    style: TextStyle(
+                      color: context.colors.bgDarkest,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  child: Icon(
+                    isQueueOpen
+                        ? Icons.queue_music_rounded
+                        : Icons.queue_music_outlined,
+                    size: 22,
+                  ),
+                ),
+                color: isQueueOpen
+                    ? Theme.of(context).colorScheme.primary
+                    : context.colors.textSecondary,
+                onPressed: onQueueToggle,
               ),
             ],
           ),

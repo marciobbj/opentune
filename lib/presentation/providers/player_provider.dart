@@ -215,6 +215,56 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     await play(); // Autoplay when loading a queue
   }
 
+  void removeFromQueue(int index) {
+    if (index < 0 || index >= state.queue.length) return;
+    final newQueue = List<Track>.from(state.queue)..removeAt(index);
+    int newIndex = state.queueIndex;
+
+    if (newQueue.isEmpty) {
+      state = state.copyWith(queue: [], queueIndex: 0);
+      return;
+    }
+
+    // Adjust current index if needed
+    if (index < newIndex) {
+      newIndex--;
+    } else if (index == newIndex) {
+      // Removed the currently playing track — stay at same index (next track)
+      newIndex = newIndex.clamp(0, newQueue.length - 1);
+    }
+
+    state = state.copyWith(queue: newQueue, queueIndex: newIndex);
+  }
+
+  void reorderQueue(int oldIndex, int newIndex) {
+    if (oldIndex == newIndex) return;
+    final queue = List<Track>.from(state.queue);
+    final item = queue.removeAt(oldIndex);
+    if (newIndex > oldIndex) newIndex--;
+    queue.insert(newIndex, item);
+
+    // Adjust queueIndex to follow the currently playing track
+    int currentIndex = state.queueIndex;
+    if (currentIndex == oldIndex) {
+      currentIndex = newIndex;
+    } else {
+      if (oldIndex < currentIndex && newIndex >= currentIndex) {
+        currentIndex--;
+      } else if (oldIndex > currentIndex && newIndex <= currentIndex) {
+        currentIndex++;
+      }
+    }
+
+    state = state.copyWith(queue: queue, queueIndex: currentIndex);
+  }
+
+  Future<void> skipToQueueIndex(int index) async {
+    if (index < 0 || index >= state.queue.length) return;
+    state = state.copyWith(queueIndex: index);
+    await loadTrack(state.queue[index]);
+    await play();
+  }
+
   Future<void> skipToNextTrack() async {
     if (state.hasNext) {
       final nextIndex = state.queueIndex + 1;

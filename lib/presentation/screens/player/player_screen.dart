@@ -15,6 +15,7 @@ import 'widgets/bottom_controls.dart';
 import 'widgets/mini_waveform.dart';
 import 'widgets/tempo_control.dart';
 import 'widgets/pitch_control.dart';
+import 'widgets/queue_panel.dart';
 
 class PlayerScreen extends ConsumerStatefulWidget {
   const PlayerScreen({super.key});
@@ -28,6 +29,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   late List<double> _demoWaveform;
   bool _showTempoPanel = false;
   bool _showPitchPanel = false;
+  bool _showQueuePanel = false;
 
   @override
   void initState() {
@@ -54,6 +56,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       if (_showPitchPanel) _showTempoPanel = false;
     });
   }
+  void _toggleQueuePanel() {
+    setState(() => _showQueuePanel = !_showQueuePanel);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -71,206 +76,236 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           SafeArea(
             top: false,
             bottom: false,
-            child: Column(
+            child: Row(
               children: [
-                // Top bar
-                TopBar(
-                  trackTitle: state.currentTrack?.title ?? 'No Track Loaded',
-                  trackArtist: state.currentTrack != null
-                      ? [state.currentTrack!.artist, state.currentTrack!.album]
-                            .where((s) => s.isNotEmpty && s != 'Unknown Artist')
-                            .join(' — ')
-                      : 'Import a track to start practicing',
-                  duration: state.duration,
-                  position: state.position,
-                  sections: state.sections,
-                  onBackPressed: () =>
-                      ref.read(navigationProvider.notifier).state = 0,
-                ),
-
-                // Main waveform
+                // Player content
                 Expanded(
-                  flex: 5,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 400),
-                      child: WaveformView(
-                        key: ValueKey(state.waveformData),
-                        waveformData: state.waveformData ?? _demoWaveform,
-                        progress: state.progress,
+                  child: Column(
+                    children: [
+                      // Top bar
+                      TopBar(
+                        trackTitle: state.currentTrack?.title ?? 'No Track Loaded',
+                        trackArtist: state.currentTrack != null
+                            ? [state.currentTrack!.artist, state.currentTrack!.album]
+                                  .where((s) => s.isNotEmpty && s != 'Unknown Artist')
+                                  .join(' — ')
+                            : 'Import a track to start practicing',
                         duration: state.duration,
                         position: state.position,
                         sections: state.sections,
-                        loopStart: state.settings.loopStart,
-                        loopEnd: state.settings.loopEnd,
-                        loopEnabled: state.settings.loopEnabled,
+                        onBackPressed: () =>
+                            ref.read(navigationProvider.notifier).state = 0,
+                        onQueueToggle: _toggleQueuePanel,
+                        isQueueOpen: _showQueuePanel,
+                        queueCount: state.queue.length,
+                      ),
+
+                      // Main waveform
+                      Expanded(
+                        flex: 5,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 400),
+                            child: WaveformView(
+                              key: ValueKey(state.waveformData),
+                              waveformData: state.waveformData ?? _demoWaveform,
+                              progress: state.progress,
+                              duration: state.duration,
+                              position: state.position,
+                              sections: state.sections,
+                              loopStart: state.settings.loopStart,
+                              loopEnd: state.settings.loopEnd,
+                              loopEnabled: state.settings.loopEnabled,
+                              onSeek: (progress) => notifier.seekToProgress(progress),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Mini waveform & time
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        child: Column(
+                          children: [
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 400),
+                              child: MiniWaveform(
+                                key: ValueKey(state.waveformData),
+                                waveformData: state.waveformData ?? _demoWaveform,
+                                progress: state.progress,
+                                duration: state.duration,
+                                sections: state.sections,
+                                loopStart: state.settings.loopStart,
+                                loopEnd: state.settings.loopEnd,
+                                loopEnabled: state.settings.loopEnabled,
                         onSeek: (progress) => notifier.seekToProgress(progress),
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Mini waveform & time
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  child: Column(
-                    children: [
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 400),
-                        child: MiniWaveform(
-                          key: ValueKey(state.waveformData),
-                          waveformData: state.waveformData ?? _demoWaveform,
-                          progress: state.progress,
-                          duration: state.duration,
-                          sections: state.sections,
-                          loopStart: state.settings.loopStart,
-                          loopEnd: state.settings.loopEnd,
-                          loopEnabled: state.settings.loopEnabled,
-                          onSeek: (progress) =>
-                              notifier.seekToProgress(progress),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  _formatDuration(state.position),
+                                  style: TextStyle(
+                                    color: context.colors.textMuted,
+                                    fontSize: 12,
+                                    fontFeatures: [FontFeature.tabularFigures()],
+                                  ),
+                                ),
+                                Text(
+                                  '-${_formatDuration(state.duration - state.position)}',
+                                  style: TextStyle(
+                                    color: context.colors.textMuted,
+                                    fontSize: 12,
+                                    fontFeatures: [FontFeature.tabularFigures()],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            _formatDuration(state.position),
-                            style: TextStyle(
-                              color: context.colors.textMuted,
-                              fontSize: 12,
-                              fontFeatures: [FontFeature.tabularFigures()],
+
+                      // Player Controls & Volume
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            // Centralized transport controls
+                            TransportControls(
+                              isPlaying: state.isPlaying,
+                              isLoading: state.isLoading,
+                              onPlayPause: () => notifier.togglePlayPause(),
+                              onSkipForward: () => notifier.skipForward(),
+                              onSkipBackward: () => notifier.skipBackward(),
+                              onSkipToStart: () => notifier.skipToPreviousTrack(),
+                              onSkipToEnd: () => notifier.skipToNextTrack(),
                             ),
-                          ),
-                          Text(
-                            '-${_formatDuration(state.duration - state.position)}',
-                            style: TextStyle(
-                              color: context.colors.textMuted,
-                              fontSize: 12,
-                              fontFeatures: [FontFeature.tabularFigures()],
+
+                            // Compact volume slider on the right
+                            Positioned(
+                              right: 20,
+                              child: SizedBox(
+                                width: 100,
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      state.volume == 0
+                                          ? Icons.volume_off_rounded
+                                          : state.volume < 0.5
+                                          ? Icons.volume_down_rounded
+                                          : Icons.volume_up_rounded,
+                                      color: context.colors.textMuted.withValues(
+                                        alpha: 0.6,
+                                      ),
+                                      size: 14,
+                                    ),
+                                    Expanded(
+                                      child: SliderTheme(
+                                        data: SliderTheme.of(context).copyWith(
+                                          trackHeight: 2,
+                                          thumbShape: const RoundSliderThumbShape(
+                                            enabledThumbRadius: 3.5,
+                                          ),
+                                          overlayShape: const RoundSliderOverlayShape(
+                                            overlayRadius: 10,
+                                          ),
+                                          activeTrackColor: Theme.of(
+                                            context,
+                                          ).colorScheme.primary,
+                                          inactiveTrackColor: context
+                                              .colors
+                                              .surfaceBorder
+                                              .withValues(alpha: 0.15),
+                                          thumbColor: Theme.of(
+                                            context,
+                                          ).colorScheme.primary,
+                                        ),
+                                        child: Slider(
+                                          value: state.volume,
+                                          onChanged: (v) => notifier.setVolume(v),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
+                      ),
+
+                      // Tempo/Pitch panels (expandable)
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                        child: _showTempoPanel
+                            ? _buildExpandablePanel(
+                                child: TempoControl(
+                                  tempo: state.settings.tempo,
+                                  originalBpm:
+                                      state.currentTrack?.originalBpm ?? 120.0,
+                                  onChanged: (v) => notifier.setTempo(v),
+                                ),
+                              )
+                            : _showPitchPanel
+                            ? _buildExpandablePanel(
+                                child: PitchControl(
+                                  pitch: state.settings.pitch,
+                                  onChanged: (v) => notifier.setPitch(v),
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+
+                      // Bottom controls
+                      BottomControls(
+                        tempo: state.settings.tempo,
+                        pitch: state.settings.pitch,
+                        loopEnabled: state.settings.loopEnabled,
+                        hasLoop: state.settings.hasLoop,
+                        sectionCount: state.sections.length,
+                        onTempoTap: _toggleTempoPanel,
+                        onPitchTap: _togglePitchPanel,
+                        onSectionsTap: () =>
+                            _showSectionsSheet(context, state, notifier),
+                        onLoopToggle: () =>
+                            _showLoopSelector(context, state, notifier),
                       ),
                     ],
                   ),
                 ),
 
-                // Player Controls & Volume
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Centralized transport controls
-                      TransportControls(
-                        isPlaying: state.isPlaying,
-                        isLoading: state.isLoading,
-                        onPlayPause: () => notifier.togglePlayPause(),
-                        onSkipForward: () => notifier.skipForward(),
-                        onSkipBackward: () => notifier.skipBackward(),
-                        onSkipToStart: () => notifier.skipToPreviousTrack(),
-                        onSkipToEnd: () => notifier.skipToNextTrack(),
-                      ),
-
-                      // Compact volume slider on the right
-                      Positioned(
-                        right: 20,
-                        child: SizedBox(
-                          width: 100,
-                          child: Row(
-                            children: [
-                              Icon(
-                                state.volume == 0
-                                    ? Icons.volume_off_rounded
-                                    : state.volume < 0.5
-                                    ? Icons.volume_down_rounded
-                                    : Icons.volume_up_rounded,
-                                color: context.colors.textMuted.withValues(
-                                  alpha: 0.6,
-                                ),
-                                size: 14,
-                              ),
-                              Expanded(
-                                child: SliderTheme(
-                                  data: SliderTheme.of(context).copyWith(
-                                    trackHeight: 2,
-                                    thumbShape: const RoundSliderThumbShape(
-                                      enabledThumbRadius: 3.5,
-                                    ),
-                                    overlayShape: const RoundSliderOverlayShape(
-                                      overlayRadius: 10,
-                                    ),
-                                    activeTrackColor: Theme.of(
-                                      context,
-                                    ).colorScheme.primary,
-                                    inactiveTrackColor: context
-                                        .colors
-                                        .surfaceBorder
-                                        .withValues(alpha: 0.15),
-                                    thumbColor: Theme.of(
-                                      context,
-                                    ).colorScheme.primary,
-                                  ),
-                                  child: Slider(
-                                    value: state.volume,
-                                    onChanged: (v) => notifier.setVolume(v),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
+                // Queue panel (slides in from right)
+                ClipRect(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                    width: _showQueuePanel
+                        ? (MediaQuery.of(context).size.width * 0.3).clamp(200.0, 350.0)
+                        : 0,
+                    child: _showQueuePanel
+                        ? QueuePanel(
+                            queue: state.queue,
+                            currentIndex: state.queueIndex,
+                            onClose: _toggleQueuePanel,
+                            onTapTrack: (index) => notifier.skipToQueueIndex(index),
+                            onRemoveTrack: (index) => notifier.removeFromQueue(index),
+                            onReorder: (oldIndex, newIndex) =>
+                                notifier.reorderQueue(oldIndex, newIndex),
+                          )
+                        : const SizedBox.shrink(),
                   ),
-                ),
-
-                // Tempo/Pitch panels (expandable)
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                  child: _showTempoPanel
-                      ? _buildExpandablePanel(
-                          child: TempoControl(
-                            tempo: state.settings.tempo,
-                            originalBpm:
-                                state.currentTrack?.originalBpm ?? 120.0,
-                            onChanged: (v) => notifier.setTempo(v),
-                          ),
-                        )
-                      : _showPitchPanel
-                      ? _buildExpandablePanel(
-                          child: PitchControl(
-                            pitch: state.settings.pitch,
-                            onChanged: (v) => notifier.setPitch(v),
-                          ),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-
-                // Bottom controls
-                BottomControls(
-                  tempo: state.settings.tempo,
-                  pitch: state.settings.pitch,
-                  loopEnabled: state.settings.loopEnabled,
-                  hasLoop: state.settings.hasLoop,
-                  sectionCount: state.sections.length,
-                  onTempoTap: _toggleTempoPanel,
-                  onPitchTap: _togglePitchPanel,
-                  onSectionsTap: () =>
-                      _showSectionsSheet(context, state, notifier),
-                  onLoopToggle: () =>
-                      _showLoopSelector(context, state, notifier),
                 ),
               ],
             ),
           ),
-
           // FAB to import track
           if (state.currentTrack == null)
             Positioned(
