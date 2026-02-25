@@ -12,6 +12,9 @@ class TopBar extends StatelessWidget {
   final VoidCallback? onBackPressed;
   final bool isQueueOpen;
   final int queueCount;
+  final ValueChanged<Section>? onSectionUpdated;
+  final ValueChanged<Section?>? onSectionDragging;
+  final Section? draggingSection;
 
   const TopBar({
     super.key,
@@ -24,6 +27,9 @@ class TopBar extends StatelessWidget {
     this.onBackPressed,
     this.isQueueOpen = false,
     this.queueCount = 0,
+    this.onSectionUpdated,
+    this.onSectionDragging,
+    this.draggingSection,
   });
 
   @override
@@ -113,6 +119,9 @@ class TopBar extends StatelessWidget {
                 sections: sections,
                 duration: duration,
                 position: position,
+                onSectionUpdated: onSectionUpdated,
+                onSectionDragging: onSectionDragging,
+                draggingSection: draggingSection,
               ),
             ),
         ],
@@ -121,24 +130,40 @@ class TopBar extends StatelessWidget {
   }
 }
 
-class _SectionTimeline extends StatelessWidget {
+class _SectionTimeline extends StatefulWidget {
   final List<Section> sections;
   final Duration duration;
   final Duration position;
+  final ValueChanged<Section>? onSectionUpdated;
+  final ValueChanged<Section?>? onSectionDragging;
+  final Section? draggingSection;
 
   const _SectionTimeline({
     required this.sections,
     required this.duration,
     required this.position,
+    this.onSectionUpdated,
+    this.onSectionDragging,
+    this.draggingSection,
   });
 
   @override
+  State<_SectionTimeline> createState() => _SectionTimelineState();
+}
+
+class _SectionTimelineState extends State<_SectionTimeline> {
+  // Drag state
+  Section? _draggingSection;
+  double _dragOffsetX = 0; // current left position during drag
+  double _dragAnchorX = 0; // where inside the chip the user grabbed
+
+  @override
   Widget build(BuildContext context) {
-    if (duration <= Duration.zero) return const SizedBox.shrink();
+    if (widget.duration <= Duration.zero) return const SizedBox.shrink();
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final totalMs = duration.inMilliseconds.toDouble();
+        final totalMs = widget.duration.inMilliseconds.toDouble();
         final width = constraints.maxWidth;
 
         return Stack(
@@ -155,40 +180,144 @@ class _SectionTimeline extends StatelessWidget {
             ),
 
             // Section blocks
-            ...sections.map((section) {
-              final startX = (section.startTime.inMilliseconds / totalMs) * width;
-              final endX = (section.endTime.inMilliseconds / totalMs) * width;
-              final sectionWidth = (endX - startX).clamp(20.0, width);
+            ...widget.sections.map((section) {
+              final isLocalDrag =
+                  _draggingSection != null &&
+                  _draggingSection!.id == section.id;
+              final isExternalDrag =
+                  !isLocalDrag &&
+                  widget.draggingSection != null &&
+                  widget.draggingSection!.id == section.id;
+              final isDragging = isLocalDrag || isExternalDrag;
 
-              final isActive = position >= section.startTime &&
-                  position <= section.endTime;
+              final double startX;
+              final double endX;
+              final double sectionWidth;
+
+              if (isLocalDrag) {
+                // Use local drag pixel position
+                final sectionMs =
+                    section.endTime.inMilliseconds -
+                    section.startTime.inMilliseconds;
+                sectionWidth = ((sectionMs / totalMs) * width).clamp(
+                  20.0,
+                  width,
+                );
+                startX = _dragOffsetX;
+                endX = startX + sectionWidth;
+              } else if (isExternalDrag) {
+                // Use external drag section times (from waveform handle drag)
+                final ds = widget.draggingSection!;
+                startX = (ds.startTime.inMilliseconds / totalMs) * width;
+                endX = (ds.endTime.inMilliseconds / totalMs) * width;
+                sectionWidth = (endX - startX).clamp(20.0, width);
+              } else {
+                startX = (section.startTime.inMilliseconds / totalMs) * width;
+                endX = (section.endTime.inMilliseconds / totalMs) * width;
+                sectionWidth = (endX - startX).clamp(20.0, width);
+              }
+
+              final isActive =
+                  !isDragging &&
+                  widget.position >= section.startTime &&
+                  widget.position <= section.endTime;
 
               return Positioned(
                 left: startX,
                 top: 0,
-                child: Container(
-                  width: sectionWidth,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: isActive
-                        ? section.color.withValues(alpha: 0.15)
-                        : section.color.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(
-                      color: section.color.withValues(alpha: isActive ? 0.6 : 0.25),
-                      width: isActive ? 1.5 : 0.5,
+                child: GestureDetector(
+                  onHorizontalDragStart: widget.onSectionUpdated != null
+                      ? (details) {
+                          setState(() {
+                            _draggingSection = section;
+                            _dragAnchorX = details.localPosition.dx;
+                            _dragOffsetX =
+                                (section.startTime.inMilliseconds / totalMs) *
+                                width;
+                          });
+                        }
+                      : null,
+                  onHorizontalDragUpdate: widget.onSectionUpdated != null
+                      ? (details) {
+                          if (_draggingSection?.id != section.id) return;
+                          final sectionMs =
+                              section.endTime.inMilliseconds -
+                              section.startTime.inMilliseconds;
+                          final sectionW = (sectionMs / totalMs) * width;
+                          // New left = constrained to [0, width - sectionW]
+                          final newOffsetX =
+                              (details.globalPosition.dx -
+                                      _dragAnchorX -
+                                      _getTimelineGlobalLeft(context))
+                                  .clamp(0.0, width - sectionW);
+                          setState(() {
+                            _dragOffsetX = newOffsetX;
+                          });
+                          // Notify parent of live drag position
+                          final newStartMs = (newOffsetX / width * totalMs).round().clamp(0, totalMs.round());
+                          final newEndMs = (newStartMs + sectionMs).clamp(0, totalMs.round());
+                          widget.onSectionDragging?.call(section.copyWith(
+                            startTime: Duration(milliseconds: newStartMs),
+                            endTime: Duration(milliseconds: newEndMs),
+                          ));
+                        }
+                      : null,
+                  onHorizontalDragEnd: widget.onSectionUpdated != null
+                      ? (details) {
+                          if (_draggingSection?.id != section.id) return;
+                          _commitDrag(width, totalMs, section);
+                        }
+                      : null,
+                  onHorizontalDragCancel: () {
+                    setState(() => _draggingSection = null);
+                    widget.onSectionDragging?.call(null);
+                  },
+                  child: AnimatedContainer(
+                    duration: isDragging
+                        ? Duration.zero
+                        : const Duration(milliseconds: 200),
+                    width: sectionWidth,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: isDragging
+                          ? section.color.withValues(alpha: 0.25)
+                          : isActive
+                          ? section.color.withValues(alpha: 0.15)
+                          : section.color.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: isDragging
+                            ? section.color.withValues(alpha: 0.8)
+                            : section.color.withValues(
+                                alpha: isActive ? 0.6 : 0.25,
+                              ),
+                        width: isDragging
+                            ? 1.5
+                            : isActive
+                            ? 1.5
+                            : 0.5,
+                      ),
+                      boxShadow: isDragging
+                          ? [
+                              BoxShadow(
+                                color: section.color.withValues(alpha: 0.3),
+                                blurRadius: 8,
+                                spreadRadius: 1,
+                              ),
+                            ]
+                          : null,
                     ),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    section.label,
-                    style: TextStyle(
-                      color: section.color,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.3,
+                    alignment: Alignment.center,
+                    child: Text(
+                      section.label,
+                      style: TextStyle(
+                        color: section.color,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.3,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               );
@@ -197,5 +326,42 @@ class _SectionTimeline extends StatelessWidget {
         );
       },
     );
+  }
+
+  double _getTimelineGlobalLeft(BuildContext context) {
+    final renderBox = context.findRenderObject() as RenderBox?;
+    if (renderBox == null) return 0;
+    return renderBox.localToGlobal(Offset.zero).dx;
+  }
+
+  void _commitDrag(double width, double totalMs, Section section) {
+    final sectionDurationMs =
+        section.endTime.inMilliseconds - section.startTime.inMilliseconds;
+
+    // Convert drag pixel position to time
+    final newStartMs = (_dragOffsetX / width * totalMs).round().clamp(
+      0,
+      totalMs.round(),
+    );
+    final newEndMs = (newStartMs + sectionDurationMs).clamp(0, totalMs.round());
+
+    // Adjust start if end hit the wall
+    final adjustedStartMs = newEndMs == totalMs.round()
+        ? (totalMs.round() - sectionDurationMs).clamp(0, totalMs.round())
+        : newStartMs;
+
+    final updated = section.copyWith(
+      startTime: Duration(milliseconds: adjustedStartMs),
+      endTime: Duration(
+        milliseconds: (adjustedStartMs + sectionDurationMs).clamp(
+          0,
+          totalMs.round(),
+        ),
+      ),
+    );
+
+    widget.onSectionUpdated?.call(updated);
+    widget.onSectionDragging?.call(null);
+    setState(() => _draggingSection = null);
   }
 }

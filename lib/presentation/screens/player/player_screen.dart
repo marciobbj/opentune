@@ -30,6 +30,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   bool _showTempoPanel = false;
   bool _showPitchPanel = false;
   bool _showQueuePanel = false;
+  Section? _draggingSection;
 
   @override
   void initState() {
@@ -58,6 +59,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   }
   void _toggleQueuePanel() {
     setState(() => _showQueuePanel = !_showQueuePanel);
+  }
+
+  void _onSectionDragging(Section? section) {
+    setState(() => _draggingSection = section);
   }
 
   @override
@@ -98,6 +103,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                         onQueueToggle: _toggleQueuePanel,
                         isQueueOpen: _showQueuePanel,
                         queueCount: state.queue.length,
+                        onSectionUpdated: (section) => notifier.updateSection(section),
+                        onSectionDragging: _onSectionDragging,
+                        draggingSection: _draggingSection,
                       ),
 
                       // Main waveform
@@ -118,6 +126,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                               loopEnd: state.settings.loopEnd,
                               loopEnabled: state.settings.loopEnabled,
                               onSeek: (progress) => notifier.seekToProgress(progress),
+                              onSectionUpdated: (section) => notifier.updateSection(section),
+                              onSectionDragging: _onSectionDragging,
+                              draggingSection: _draggingSection,
                             ),
                           ),
                         ),
