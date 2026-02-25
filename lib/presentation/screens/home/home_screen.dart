@@ -9,6 +9,7 @@ import '../library/library_screen.dart';
 import '../settings/settings_screen.dart';
 import '../../providers/navigation_provider.dart';
 import '../../providers/player_provider.dart';
+import '../../widgets/app_title_bar.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -24,9 +25,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final currentIndex = ref.watch(navigationProvider);
 
+    final bool isDesktop = !kIsWeb &&
+        (Platform.isLinux || Platform.isWindows || Platform.isMacOS);
+
     Widget scaffold = Scaffold(
       backgroundColor: context.colors.bgDarkest,
-      body: IndexedStack(index: currentIndex, children: _screens),
+      body: Column(
+        children: [
+          if (isDesktop) const AppTitleBar(),
+          Expanded(child: IndexedStack(index: currentIndex, children: _screens)),
+        ],
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: context.colors.bgDark,
@@ -82,8 +91,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
     );
 
-    if (!kIsWeb &&
-        (Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
+    if (isDesktop) {
       return Focus(
         autofocus: true,
         onKeyEvent: (node, event) {

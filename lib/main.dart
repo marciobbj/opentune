@@ -23,7 +23,7 @@ void main() async {
       if (!await mpvCacheDir.exists()) {
         await mpvCacheDir.create(recursive: true);
       }
-      
+
       // Set TMPDIR to the app's cache directory so MPV has a reliable place for lavf cache
       Platform.environment['TMPDIR'] = mpvCacheDir.path;
     } catch (_) {
