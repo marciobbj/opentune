@@ -22,6 +22,9 @@ class LocalDatabase {
     return openDatabase(
       path,
       version: _dbVersion,
+      onConfigure: (db) async {
+        await db.execute('PRAGMA foreign_keys = ON');
+      },
       onCreate: _onCreate,
     );
   }
@@ -130,6 +133,8 @@ class LocalDatabase {
 
   static Future<void> deleteTrack(int id) async {
     final db = await database;
+    // Remove from any playlists first (handles cases where foreign keys pragma was not active)
+    await db.delete('playlist_tracks', where: 'trackId = ?', whereArgs: [id]);
     await db.delete('tracks', where: 'id = ?', whereArgs: [id]);
   }
 

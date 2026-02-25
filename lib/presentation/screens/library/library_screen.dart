@@ -11,6 +11,8 @@ import '../../providers/navigation_provider.dart';
 import '../../shared/edit_track_dialog.dart';
 import 'playlist_detail_screen.dart';
 
+enum TrackSortField { title, artist, album, dateAdded }
+
 class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
 
@@ -22,11 +24,53 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   List<Playlist> _playlists = [];
   List<Track> _allTracks = [];
   bool _isLoading = true;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  TrackSortField _sortField = TrackSortField.dateAdded;
+  bool _sortAscending = false;
+
+  List<Track> get _filteredTracks {
+    var tracks = List<Track>.from(_allTracks);
+
+    // Filter by search query
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      tracks = tracks.where((t) =>
+        t.title.toLowerCase().contains(q) ||
+        t.artist.toLowerCase().contains(q) ||
+        t.album.toLowerCase().contains(q)
+      ).toList();
+    }
+
+    // Sort
+    tracks.sort((a, b) {
+      int cmp;
+      switch (_sortField) {
+        case TrackSortField.title:
+          cmp = a.title.toLowerCase().compareTo(b.title.toLowerCase());
+        case TrackSortField.artist:
+          cmp = a.artist.toLowerCase().compareTo(b.artist.toLowerCase());
+        case TrackSortField.album:
+          cmp = a.album.toLowerCase().compareTo(b.album.toLowerCase());
+        case TrackSortField.dateAdded:
+          cmp = a.createdAt.compareTo(b.createdAt);
+      }
+      return _sortAscending ? cmp : -cmp;
+    });
+
+    return tracks;
+  }
 
   @override
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -88,6 +132,247 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           ),
         );
       }
+    }
+  }
+
+  Future<void> _copyMetadataFromTrack(Track targetTrack) async {
+    final searchController = TextEditingController();
+    final otherTracks = _allTracks.where((t) => t.id != targetTrack.id).toList();
+    var filtered = List<Track>.from(otherTracks);
+    final fields = {'title': false, 'artist': true, 'album': true};
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              backgroundColor: context.colors.bgCard,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Text(
+                'Copy metadata to "${targetTrack.title}"',
+                style: TextStyle(
+                  color: context.colors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              content: SizedBox(
+                width: 400,
+                height: 420,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Field selection
+                    Text(
+                      'Fields to copy:',
+                      style: TextStyle(
+                        color: context.colors.textMuted,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: fields.keys.map((field) {
+                        final checked = fields[field]!;
+                        final label = field[0].toUpperCase() + field.substring(1);
+                        return FilterChip(
+                          selected: checked,
+                          label: Text(
+                            label,
+                            style: TextStyle(
+                              color: checked
+                                  ? context.colors.bgDarkest
+                                  : context.colors.textSecondary,
+                              fontSize: 12,
+                              fontWeight: checked ? FontWeight.w600 : FontWeight.w400,
+                            ),
+                          ),
+                          selectedColor: Theme.of(context).colorScheme.primary,
+                          backgroundColor: context.colors.bgDark,
+                          checkmarkColor: context.colors.bgDarkest,
+                          side: BorderSide(
+                            color: checked
+                                ? Theme.of(context).colorScheme.primary
+                                : context.colors.surfaceBorder.withValues(alpha: 0.3),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          onSelected: (v) {
+                            setDialogState(() => fields[field] = v);
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 14),
+                    // Search
+                    Text(
+                      'Select source track:',
+                      style: TextStyle(
+                        color: context.colors.textMuted,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: searchController,
+                      style: TextStyle(color: context.colors.textPrimary, fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: 'Search tracks...',
+                        hintStyle: TextStyle(
+                          color: context.colors.textMuted.withValues(alpha: 0.5),
+                        ),
+                        prefixIcon: Icon(
+                          Icons.search_rounded,
+                          color: context.colors.textMuted,
+                          size: 20,
+                        ),
+                        suffixIcon: searchController.text.isNotEmpty
+                            ? GestureDetector(
+                                onTap: () {
+                                  setDialogState(() {
+                                    searchController.clear();
+                                    filtered = List<Track>.from(otherTracks);
+                                  });
+                                },
+                                child: Icon(
+                                  Icons.close_rounded,
+                                  color: context.colors.textMuted,
+                                  size: 18,
+                                ),
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: context.colors.bgDark,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      onChanged: (query) {
+                        setDialogState(() {
+                          final q = query.toLowerCase();
+                          filtered = otherTracks
+                              .where((t) =>
+                                  t.title.toLowerCase().contains(q) ||
+                                  t.artist.toLowerCase().contains(q))
+                              .toList();
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    // Track list
+                    Expanded(
+                      child: filtered.isEmpty
+                          ? Center(
+                              child: Text(
+                                'No tracks found',
+                                style: TextStyle(
+                                  color: context.colors.textMuted,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            )
+                          : ListView.builder(
+                              itemCount: filtered.length,
+                              itemBuilder: (context, index) {
+                                final track = filtered[index];
+                                final hasSelection = fields.values.any((v) => v);
+                                return ListTile(
+                                  dense: true,
+                                  enabled: hasSelection,
+                                  title: Text(
+                                    track.title,
+                                    style: TextStyle(
+                                      color: hasSelection
+                                          ? context.colors.textPrimary
+                                          : context.colors.textDisabled,
+                                      fontSize: 14,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  subtitle: Text(
+                                    '${track.artist}${track.album.isNotEmpty ? " · ${track.album}" : ""}',
+                                    style: TextStyle(
+                                      color: hasSelection
+                                          ? context.colors.textMuted
+                                          : context.colors.textDisabled,
+                                      fontSize: 12,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  leading: Icon(
+                                    Icons.music_note_rounded,
+                                    color: hasSelection
+                                        ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.6)
+                                        : context.colors.textDisabled,
+                                    size: 20,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  onTap: hasSelection
+                                      ? () => Navigator.pop(ctx, {
+                                            'track': track,
+                                            'fields': Map<String, bool>.from(fields),
+                                          })
+                                      : null,
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (result == null) return;
+
+    final sourceTrack = result['track'] as Track;
+    final selectedFields = result['fields'] as Map<String, bool>;
+
+    final updatedTrack = targetTrack.copyWith(
+      title: selectedFields['title'] == true ? sourceTrack.title : null,
+      artist: selectedFields['artist'] == true ? sourceTrack.artist : null,
+      album: selectedFields['album'] == true ? sourceTrack.album : null,
+      updatedAt: DateTime.now(),
+    );
+
+    await LocalDatabase.updateTrack(updatedTrack);
+    await _loadData();
+    ref.read(playerProvider.notifier).updateCurrentTrackMetadata(updatedTrack);
+
+    if (mounted) {
+      final copiedFields = selectedFields.entries
+          .where((e) => e.value)
+          .map((e) => e.key)
+          .join(', ');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Copied $copiedFields from "${sourceTrack.title}"'),
+          backgroundColor: context.colors.success,
+        ),
+      );
     }
   }
 
@@ -223,39 +508,210 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             ),
           ),
 
-        // All tracks section
+        // All tracks section header
         SliverToBoxAdapter(
           child: Padding(
-            padding: EdgeInsets.fromLTRB(20, 24, 20, 12),
-            child: Text(
-              'ALL TRACKS',
-              style: TextStyle(
-                color: context.colors.textMuted,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.5,
-              ),
+            padding: EdgeInsets.fromLTRB(20, 24, 20, 8),
+            child: Row(
+              children: [
+                Text(
+                  'ALL TRACKS',
+                  style: TextStyle(
+                    color: context.colors.textMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _searchQuery.isNotEmpty
+                      ? '${_filteredTracks.length} of ${_allTracks.length}'
+                      : '${_allTracks.length}',
+                  style: TextStyle(
+                    color: context.colors.textMuted.withValues(alpha: 0.6),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
 
+        // Search + Sort controls
+        if (_allTracks.isNotEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              child: Column(
+                children: [
+                  // Search field
+                  TextField(
+                    controller: _searchController,
+                    style: TextStyle(color: context.colors.textPrimary, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Search by title, artist, album...',
+                      hintStyle: TextStyle(
+                        color: context.colors.textMuted.withValues(alpha: 0.5),
+                      ),
+                      prefixIcon: Icon(
+                        Icons.search_rounded,
+                        color: context.colors.textMuted,
+                        size: 20,
+                      ),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _searchController.clear();
+                                  _searchQuery = '';
+                                });
+                              },
+                              child: Icon(
+                                Icons.close_rounded,
+                                color: context.colors.textMuted,
+                                size: 18,
+                              ),
+                            )
+                          : null,
+                      filled: true,
+                      fillColor: context.colors.bgDark,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    onChanged: (query) {
+                      setState(() => _searchQuery = query);
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  // Sort controls
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: TrackSortField.values.map((field) {
+                              final selected = _sortField == field;
+                              final label = switch (field) {
+                                TrackSortField.title => 'Title',
+                                TrackSortField.artist => 'Artist',
+                                TrackSortField.album => 'Album',
+                                TrackSortField.dateAdded => 'Date Added',
+                              };
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: ChoiceChip(
+                                  selected: selected,
+                                  label: Text(
+                                    label,
+                                    style: TextStyle(
+                                      color: selected
+                                          ? context.colors.bgDarkest
+                                          : context.colors.textSecondary,
+                                      fontSize: 12,
+                                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                                    ),
+                                  ),
+                                  selectedColor: Theme.of(context).colorScheme.primary,
+                                  backgroundColor: context.colors.bgDark,
+                                  side: BorderSide(
+                                    color: selected
+                                        ? Theme.of(context).colorScheme.primary
+                                        : context.colors.surfaceBorder.withValues(alpha: 0.3),
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  showCheckmark: false,
+                                  visualDensity: VisualDensity.compact,
+                                  onSelected: (_) {
+                                    setState(() {
+                                      if (_sortField == field) {
+                                        _sortAscending = !_sortAscending;
+                                      } else {
+                                        _sortField = field;
+                                        _sortAscending = field == TrackSortField.title ||
+                                            field == TrackSortField.artist ||
+                                            field == TrackSortField.album;
+                                      }
+                                    });
+                                  },
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() => _sortAscending = !_sortAscending);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: context.colors.bgDark,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: context.colors.surfaceBorder.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Icon(
+                            _sortAscending
+                                ? Icons.arrow_upward_rounded
+                                : Icons.arrow_downward_rounded,
+                            color: context.colors.textSecondary,
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+        const SliverToBoxAdapter(child: SizedBox(height: 8)),
+
         if (_allTracks.isEmpty)
           SliverToBoxAdapter(child: _buildEmptyTracks())
+        else if (_filteredTracks.isEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              child: Center(
+                child: Text(
+                  'No tracks match your search',
+                  style: TextStyle(
+                    color: context.colors.textMuted,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ),
+          )
         else
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, index) => _TrackTile(
-                  track: _allTracks[index],
-                  onTap: () => _openTrackInPlayer(_allTracks[index]),
+                  track: _filteredTracks[index],
+                  onTap: () => _openTrackInPlayer(_filteredTracks[index]),
                   onAddToPlaylist: () =>
-                      _showAddToPlaylistDialog(_allTracks[index]),
-                  onEditTrack: () => _editTrackMetadata(_allTracks[index]),
+                      _showAddToPlaylistDialog(_filteredTracks[index]),
+                  onEditTrack: () => _editTrackMetadata(_filteredTracks[index]),
+                  onCopyMetadata: () =>
+                      _copyMetadataFromTrack(_filteredTracks[index]),
                   onRemoveFromLibrary: () =>
-                      _removeTrackFromLibrary(_allTracks[index]),
+                      _removeTrackFromLibrary(_filteredTracks[index]),
                 ),
-                childCount: _allTracks.length,
+                childCount: _filteredTracks.length,
               ),
             ),
           ),
@@ -896,6 +1352,7 @@ class _TrackTile extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onAddToPlaylist;
   final VoidCallback? onEditTrack;
+  final VoidCallback? onCopyMetadata;
   final VoidCallback? onRemoveFromLibrary;
 
   const _TrackTile({
@@ -903,6 +1360,7 @@ class _TrackTile extends StatelessWidget {
     this.onTap,
     this.onAddToPlaylist,
     this.onEditTrack,
+    this.onCopyMetadata,
     this.onRemoveFromLibrary,
   });
 
@@ -978,6 +1436,7 @@ class _TrackTile extends StatelessWidget {
                   onSelected: (value) {
                     if (value == 'add') onAddToPlaylist?.call();
                     if (value == 'edit') onEditTrack?.call();
+                    if (value == 'copy_meta') onCopyMetadata?.call();
                     if (value == 'remove') onRemoveFromLibrary?.call();
                   },
                   itemBuilder: (context) => [
@@ -992,6 +1451,13 @@ class _TrackTile extends StatelessWidget {
                       value: 'edit',
                       child: Text(
                         'Edit metadata',
+                        style: TextStyle(color: context.colors.textPrimary),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'copy_meta',
+                      child: Text(
+                        'Copy metadata from...',
                         style: TextStyle(color: context.colors.textPrimary),
                       ),
                     ),

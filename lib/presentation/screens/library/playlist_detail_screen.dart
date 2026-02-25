@@ -302,6 +302,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                       color: color,
                       onTap: () => _openTrack(track, index),
                       onEdit: () => _editTrackMetadata(track),
+                      onCopyMetadata: () => _copyMetadataFromTrack(track),
                       onRemove: () => _removeTrack(track),
                     ),
                   );
@@ -481,6 +482,248 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
     }
   }
 
+  Future<void> _copyMetadataFromTrack(Track targetTrack) async {
+    final allTracks = await LocalDatabase.getAllTracks();
+    final otherTracks = allTracks.where((t) => t.id != targetTrack.id).toList();
+    final searchController = TextEditingController();
+    var filtered = List<Track>.from(otherTracks);
+    final fields = {'title': false, 'artist': true, 'album': true};
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              backgroundColor: context.colors.bgCard,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Text(
+                'Copy metadata to "${targetTrack.title}"',
+                style: TextStyle(
+                  color: context.colors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              content: SizedBox(
+                width: 400,
+                height: 420,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Field selection
+                    Text(
+                      'Fields to copy:',
+                      style: TextStyle(
+                        color: context.colors.textMuted,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: fields.keys.map((field) {
+                        final checked = fields[field]!;
+                        final label = field[0].toUpperCase() + field.substring(1);
+                        return FilterChip(
+                          selected: checked,
+                          label: Text(
+                            label,
+                            style: TextStyle(
+                              color: checked
+                                  ? context.colors.bgDarkest
+                                  : context.colors.textSecondary,
+                              fontSize: 12,
+                              fontWeight: checked ? FontWeight.w600 : FontWeight.w400,
+                            ),
+                          ),
+                          selectedColor: Theme.of(context).colorScheme.primary,
+                          backgroundColor: context.colors.bgDark,
+                          checkmarkColor: context.colors.bgDarkest,
+                          side: BorderSide(
+                            color: checked
+                                ? Theme.of(context).colorScheme.primary
+                                : context.colors.surfaceBorder.withValues(alpha: 0.3),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          onSelected: (v) {
+                            setDialogState(() => fields[field] = v);
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 14),
+                    // Search
+                    Text(
+                      'Select source track:',
+                      style: TextStyle(
+                        color: context.colors.textMuted,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: searchController,
+                      style: TextStyle(color: context.colors.textPrimary, fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: 'Search tracks...',
+                        hintStyle: TextStyle(
+                          color: context.colors.textMuted.withValues(alpha: 0.5),
+                        ),
+                        prefixIcon: Icon(
+                          Icons.search_rounded,
+                          color: context.colors.textMuted,
+                          size: 20,
+                        ),
+                        suffixIcon: searchController.text.isNotEmpty
+                            ? GestureDetector(
+                                onTap: () {
+                                  setDialogState(() {
+                                    searchController.clear();
+                                    filtered = List<Track>.from(otherTracks);
+                                  });
+                                },
+                                child: Icon(
+                                  Icons.close_rounded,
+                                  color: context.colors.textMuted,
+                                  size: 18,
+                                ),
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: context.colors.bgDark,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      onChanged: (query) {
+                        setDialogState(() {
+                          final q = query.toLowerCase();
+                          filtered = otherTracks
+                              .where((t) =>
+                                  t.title.toLowerCase().contains(q) ||
+                                  t.artist.toLowerCase().contains(q))
+                              .toList();
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    // Track list
+                    Expanded(
+                      child: filtered.isEmpty
+                          ? Center(
+                              child: Text(
+                                'No tracks found',
+                                style: TextStyle(
+                                  color: context.colors.textMuted,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            )
+                          : ListView.builder(
+                              itemCount: filtered.length,
+                              itemBuilder: (context, index) {
+                                final track = filtered[index];
+                                final hasSelection = fields.values.any((v) => v);
+                                return ListTile(
+                                  dense: true,
+                                  enabled: hasSelection,
+                                  title: Text(
+                                    track.title,
+                                    style: TextStyle(
+                                      color: hasSelection
+                                          ? context.colors.textPrimary
+                                          : context.colors.textDisabled,
+                                      fontSize: 14,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  subtitle: Text(
+                                    '${track.artist}${track.album.isNotEmpty ? " · ${track.album}" : ""}',
+                                    style: TextStyle(
+                                      color: hasSelection
+                                          ? context.colors.textMuted
+                                          : context.colors.textDisabled,
+                                      fontSize: 12,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  leading: Icon(
+                                    Icons.music_note_rounded,
+                                    color: hasSelection
+                                        ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.6)
+                                        : context.colors.textDisabled,
+                                    size: 20,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  onTap: hasSelection
+                                      ? () => Navigator.pop(ctx, {
+                                            'track': track,
+                                            'fields': Map<String, bool>.from(fields),
+                                          })
+                                      : null,
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (result == null) return;
+
+    final sourceTrack = result['track'] as Track;
+    final selectedFields = result['fields'] as Map<String, bool>;
+
+    final updatedTrack = targetTrack.copyWith(
+      title: selectedFields['title'] == true ? sourceTrack.title : null,
+      artist: selectedFields['artist'] == true ? sourceTrack.artist : null,
+      album: selectedFields['album'] == true ? sourceTrack.album : null,
+      updatedAt: DateTime.now(),
+    );
+
+    await LocalDatabase.updateTrack(updatedTrack);
+    await _loadTracks();
+    ref.read(playerProvider.notifier).updateCurrentTrackMetadata(updatedTrack);
+
+    if (mounted) {
+      final copiedFields = selectedFields.entries
+          .where((e) => e.value)
+          .map((e) => e.key)
+          .join(', ');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Copied $copiedFields from "${sourceTrack.title}"'),
+          backgroundColor: context.colors.success,
+        ),
+      );
+    }
+  }
+
   void _onReorder(int oldIndex, int newIndex) {
     setState(() {
       if (newIndex > oldIndex) newIndex--;
@@ -510,6 +753,8 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
     }
 
     final selected = <int>{};
+    final searchController = TextEditingController();
+    var filtered = List<Track>.from(available);
 
     showDialog(
       context: context,
@@ -530,42 +775,106 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
               ),
               content: SizedBox(
                 width: 400,
-                height: 300,
-                child: ListView.builder(
-                  itemCount: available.length,
-                  itemBuilder: (context, index) {
-                    final track = available[index];
-                    final isSelected = selected.contains(track.id);
-                    return CheckboxListTile(
-                      value: isSelected,
-                      onChanged: (v) {
+                height: 360,
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: searchController,
+                      style: TextStyle(color: context.colors.textPrimary, fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: 'Search tracks...',
+                        hintStyle: TextStyle(
+                          color: context.colors.textMuted.withValues(alpha: 0.5),
+                        ),
+                        prefixIcon: Icon(
+                          Icons.search_rounded,
+                          color: context.colors.textMuted,
+                          size: 20,
+                        ),
+                        suffixIcon: searchController.text.isNotEmpty
+                            ? GestureDetector(
+                                onTap: () {
+                                  setDialogState(() {
+                                    searchController.clear();
+                                    filtered = List<Track>.from(available);
+                                  });
+                                },
+                                child: Icon(
+                                  Icons.close_rounded,
+                                  color: context.colors.textMuted,
+                                  size: 18,
+                                ),
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: context.colors.bgDark,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      onChanged: (query) {
                         setDialogState(() {
-                          if (v == true) {
-                            selected.add(track.id!);
-                          } else {
-                            selected.remove(track.id);
-                          }
+                          final q = query.toLowerCase();
+                          filtered = available
+                              .where((t) =>
+                                  t.title.toLowerCase().contains(q) ||
+                                  t.artist.toLowerCase().contains(q))
+                              .toList();
                         });
                       },
-                      title: Text(
-                        track.title,
-                        style: TextStyle(
-                          color: context.colors.textPrimary,
-                          fontSize: 14,
-                        ),
-                      ),
-                      subtitle: Text(
-                        track.artist,
-                        style: TextStyle(
-                          color: context.colors.textMuted,
-                          fontSize: 12,
-                        ),
-                      ),
-                      activeColor: Theme.of(context).colorScheme.primary,
-                      checkColor: context.colors.bgDarkest,
-                      controlAffinity: ListTileControlAffinity.leading,
-                    );
-                  },
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: filtered.isEmpty
+                          ? Center(
+                              child: Text(
+                                'No tracks found',
+                                style: TextStyle(
+                                  color: context.colors.textMuted,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            )
+                          : ListView.builder(
+                              itemCount: filtered.length,
+                              itemBuilder: (context, index) {
+                                final track = filtered[index];
+                                final isSelected = selected.contains(track.id);
+                                return CheckboxListTile(
+                                  value: isSelected,
+                                  onChanged: (v) {
+                                    setDialogState(() {
+                                      if (v == true) {
+                                        selected.add(track.id!);
+                                      } else {
+                                        selected.remove(track.id);
+                                      }
+                                    });
+                                  },
+                                  title: Text(
+                                    track.title,
+                                    style: TextStyle(
+                                      color: context.colors.textPrimary,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    track.artist,
+                                    style: TextStyle(
+                                      color: context.colors.textMuted,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  activeColor: Theme.of(context).colorScheme.primary,
+                                  checkColor: context.colors.bgDarkest,
+                                  controlAffinity: ListTileControlAffinity.leading,
+                                );
+                              },
+                            ),
+                    ),
+                  ],
                 ),
               ),
               actions: [
@@ -673,6 +982,7 @@ class _PlaylistTrackTile extends StatelessWidget {
   final Color color;
   final VoidCallback? onTap;
   final VoidCallback? onEdit;
+  final VoidCallback? onCopyMetadata;
   final VoidCallback? onRemove;
 
   const _PlaylistTrackTile({
@@ -681,6 +991,7 @@ class _PlaylistTrackTile extends StatelessWidget {
     required this.color,
     this.onTap,
     this.onEdit,
+    this.onCopyMetadata,
     this.onRemove,
   });
 
@@ -762,6 +1073,7 @@ class _PlaylistTrackTile extends StatelessWidget {
                   ),
                   onSelected: (value) {
                     if (value == 'edit') onEdit?.call();
+                    if (value == 'copy_meta') onCopyMetadata?.call();
                     if (value == 'remove') onRemove?.call();
                   },
                   itemBuilder: (context) => [
@@ -769,6 +1081,13 @@ class _PlaylistTrackTile extends StatelessWidget {
                       value: 'edit',
                       child: Text(
                         'Edit metadata',
+                        style: TextStyle(color: context.colors.textPrimary),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'copy_meta',
+                      child: Text(
+                        'Copy metadata from...',
                         style: TextStyle(color: context.colors.textPrimary),
                       ),
                     ),
