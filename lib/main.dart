@@ -32,7 +32,10 @@ void main() async {
   }
 
   // Initialize MediaKit for desktop audio playback
-  JustAudioMediaKit.ensureInitialized();
+  // macOS needs explicit opt-in for MediaKit (enables pitch shifting via mpv)
+  JustAudioMediaKit.ensureInitialized(
+    macOS: Platform.isMacOS,
+  );
   // Set buffer size and ignore minor lavf cache errors in logs
   JustAudioMediaKit.bufferSize = 1 * 1024 * 1024;
   JustAudioMediaKit.mpvLogLevel = MPVLogLevel.warn;
