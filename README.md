@@ -40,3 +40,41 @@ A real-time waveform display provides a detailed visual map of the audio track. 
 - Metadata Handling: TagLib integration
 - Local Storage: SQLite (sqflite)
 - Platform Support: Linux (optimized for high-performance desktop audio)
+
+## Building from Source
+
+To build OpenTune from the source code, follow these steps:
+
+### Prerequisites
+
+1.  **Flutter SDK**: Ensure you have the Flutter SDK installed on your machine. Follow the [official installation guide](https://docs.flutter.dev/get-started/install).
+2.  **FFmpeg**: Required for desktop platforms.
+    *   **Linux**: `sudo apt install ffmpeg libmpv-dev libtaglib_c-dev`
+    *   **Windows/macOS**: Install FFmpeg and ensure it's in your PATH.
+
+### Steps
+
+1.  **Clone the Repository**:
+    ```bash
+    git clone https://github.com/marciobbj/opentune.git
+    cd opentune/app
+    ```
+
+2.  **Install Dependencies**:
+    ```bash
+    flutter pub get
+    ```
+
+3.  **Run the Application**:
+    ```bash
+    flutter run
+    ```
+
+4.  **Build for Production**:
+    *   **Linux**: `flutter build linux`
+    *   **Windows**: `flutter build windows`
+    *   **macOS**: `flutter build macos`
+    *   **Android**: `flutter build apk`
+    *   **iOS**: `flutter build ios`
+
+---
