@@ -81,4 +81,4 @@ To build OpenTune from the source code, follow these steps:
 
 ### Contribute
 
-We are accepting binaries from Windows. Currently I don't have any Windows machine to build the app and distribute the .exe file. Also, if you want to collaborate just fill a PR, send the details of the feature or change you have implemented and let me know how to test it. 
+Currently I don't have access to any Windows machine to build the app and distribute the .exe file, but Flutter supports Windows. Also, if you want to collaborate just fill a PR, send the details of the feature or change you have implemented and let me know how to test it. 
