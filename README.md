@@ -50,7 +50,7 @@ To build OpenTune from the source code, follow these steps:
 1.  **Flutter SDK**: Ensure you have the Flutter SDK installed on your machine. Follow the [official installation guide](https://docs.flutter.dev/get-started/install).
 2.  **FFmpeg**: Required for desktop platforms.
     *   **Linux**: `sudo apt install ffmpeg libmpv-dev libtaglib_c-dev`
-    *   **Windows/macOS**: Install FFmpeg and ensure it's in your PATH.
+    *   **Windows/macOS**: **Install FFmpeg and ensure it's in your PATH**.
 
 ### Steps
 
