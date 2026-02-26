@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/ffmpeg_manager.dart';
 import '../player/player_screen.dart';
 import '../library/library_screen.dart';
 import '../settings/settings_screen.dart';
 import '../../providers/navigation_provider.dart';
 import '../../providers/player_provider.dart';
 import '../../widgets/app_title_bar.dart';
+import '../../widgets/ffmpeg_download_dialog.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -20,6 +22,40 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   final _screens = const [LibraryScreen(), PlayerScreen(), SettingsScreen()];
+
+  @override
+  void initState() {
+    super.initState();
+    _checkFfmpeg();
+  }
+
+  Future<void> _checkFfmpeg() async {
+    if (!FfmpegManager.isRequired) return;
+
+    // Wait for first frame so we have a valid BuildContext for dialogs
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+
+      final manager = FfmpegManager.instance;
+
+      // If the prompt was already shown once, just try to initialize silently
+      if (await manager.isPromptShown) {
+        await manager.initialize();
+        return;
+      }
+
+      // Try to find FFmpeg (might be on PATH already)
+      final found = await manager.initialize();
+      if (found) return;
+
+      // FFmpeg not found — mark prompt as shown (first-run only, regardless of outcome)
+      await manager.markPromptShown();
+
+      // Show download dialog
+      if (!mounted) return;
+      await FfmpegDownloadDialog.show(context);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -7,6 +7,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:just_waveform/just_waveform.dart';
 
+
+import 'ffmpeg_manager.dart';
+
 class WaveformExtractor {
   static Future<List<double>> extract(String filePath, {int bins = 200}) async {
     try {
@@ -60,8 +63,13 @@ class WaveformExtractor {
   }
 
   static Future<List<double>> _extractViaFFmpeg(String filePath, int bins) async {
+    // Resolve FFmpeg path: prefer locally downloaded binary, fall back to PATH
+    final manager = FfmpegManager.instance;
+    await manager.initialize();
+    final ffmpeg = manager.ffmpegPath ?? 'ffmpeg';
+
     final result = await Process.run(
-      'ffmpeg',
+      ffmpeg,
       [
         '-v', 'error',
         '-i', filePath,
