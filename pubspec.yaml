@@ -15,6 +15,7 @@ dependencies:
   just_audio_media_kit: ^2.1.0
   media_kit_libs_linux: any
   media_kit_libs_macos_audio: any  # Required for pitch shifting on macOS
+  media_kit_libs_windows_audio: ^1.0.9
   file_picker: ^9.2.1
 
   # State Management
@@ -37,9 +38,24 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
 
   assets:
     - assets/icons/
+
+flutter_launcher_icons:
+  image_path: assets/icons/app_icon.png
+  android: true
+  ios: true
+  windows:
+    generate: true
+    image_path: assets/icons/app_icon.png
+  macos:
+    generate: true
+    image_path: assets/icons/app_icon.png
+  linux:
+    generate: true
+    image_path: assets/icons/app_icon.png
