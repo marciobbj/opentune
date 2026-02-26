@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:archive/archive_io.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
@@ -105,9 +106,11 @@ class FfmpegManager {
     final tmpFile = File('$localPath.tmp');
 
     try {
+      debugPrint('FFmpeg: starting download from $url');
       final client = HttpClient();
       final request = await client.getUrl(Uri.parse(url));
       final response = await request.close();
+      debugPrint('FFmpeg: HTTP response status: ${response.statusCode}');
 
       if (response.statusCode != 200) {
         client.close();
@@ -131,9 +134,9 @@ class FfmpegManager {
       await sink.close();
       client.close();
 
-      // For Linux: the download is a tar.xz archive — extract the binary.
-      // For Windows: the download is a zip — extract the binary.
-      // We use lightweight extraction via Process since we're on desktop.
+      debugPrint('FFmpeg: download complete, extracting archive...');
+      // For Linux: the download is a tar.xz archive — extract via tar.
+      // For Windows: the download is a zip — extract via pure Dart (archive package).
       final extractedPath = await _extractBinary(tmpFile.path, localPath);
       if (extractedPath == null) return null;
 
@@ -147,8 +150,9 @@ class FfmpegManager {
       await _markComplete(extractedPath);
 
       return extractedPath;
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('FFmpeg download failed: $e');
+      debugPrint('FFmpeg download stack trace: $st');
       return null;
     } finally {
       // Clean up temp file
@@ -229,23 +233,48 @@ class FfmpegManager {
         }
         return null;
       } else if (Platform.isWindows) {
-        // zip extraction via PowerShell
-        final result = await Process.run('powershell', [
-          '-NoProfile',
-          '-Command',
-          'Expand-Archive -Path "$archivePath" -DestinationPath "${extractDir.path}" -Force',
-        ]);
-        if (result.exitCode != 0) {
-          debugPrint('zip extraction failed: ${result.stderr}');
+        // Pure Dart zip extraction via the 'archive' package.
+        // PowerShell's Expand-Archive is unreliable: it can fail on large
+        // archives, choke on long paths, and varies by PS version.
+        try {
+          debugPrint('FFmpeg: extracting ZIP via Dart archive package...');
+          final inputStream = InputFileStream(archivePath);
+          final archive = ZipDecoder().decodeStream(inputStream);
+
+          String? ffmpegEntryName;
+          for (final file in archive) {
+            if (file.isFile &&
+                path.basename(file.name).toLowerCase() == 'ffmpeg.exe') {
+              ffmpegEntryName = file.name;
+              // Write ffmpeg.exe directly to extractDir for later copy
+              final outPath = path.join(extractDir.path, 'ffmpeg.exe');
+              final outputStream = OutputFileStream(outPath);
+              file.writeContent(outputStream);
+              outputStream.close();
+              debugPrint('FFmpeg: extracted ${file.name} -> $outPath');
+              break;
+            }
+          }
+          inputStream.close();
+
+          if (ffmpegEntryName == null) {
+            debugPrint('FFmpeg: ffmpeg.exe not found in ZIP archive');
+            return null;
+          }
+
+          final extracted = File(path.join(extractDir.path, 'ffmpeg.exe'));
+          if (await extracted.exists()) {
+            await extracted.copy(targetPath);
+            debugPrint('FFmpeg: copied to $targetPath');
+            return targetPath;
+          }
+          debugPrint('FFmpeg: extracted file missing after write');
+          return null;
+        } catch (e, st) {
+          debugPrint('FFmpeg: Dart ZIP extraction failed: $e');
+          debugPrint('FFmpeg: stack trace: $st');
           return null;
         }
-        // Find ffmpeg.exe recursively in extracted dir
-        final ffmpegExe = await _findFile(extractDir, 'ffmpeg.exe');
-        if (ffmpegExe != null) {
-          await File(ffmpegExe).copy(targetPath);
-          return targetPath;
-        }
-        return null;
       }
       return null;
     } finally {
@@ -256,15 +285,5 @@ class FfmpegManager {
         }
       } catch (_) {}
     }
-  }
-
-  /// Recursively find a file by name in a directory.
-  Future<String?> _findFile(Directory dir, String fileName) async {
-    await for (final entity in dir.list(recursive: true)) {
-      if (entity is File && path.basename(entity.path) == fileName) {
-        return entity.path;
-      }
-    }
-    return null;
   }
 }
