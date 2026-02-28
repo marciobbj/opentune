@@ -44,8 +44,10 @@ class BottomControls extends StatelessWidget {
       decoration: BoxDecoration(
         color: context.colors.bgDarkest.withValues(alpha: 0.95),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 8,
+        runSpacing: 6,
         children: [
           // Tempo
           _ControlChip(

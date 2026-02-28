@@ -201,76 +201,159 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                       ),
 
                       // Player Controls & Volume
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            // Centralized transport controls
-                            TransportControls(
-                              isPlaying: state.isPlaying,
-                              isLoading: state.isLoading,
-                              onPlayPause: () => notifier.togglePlayPause(),
-                              onSkipForward: () => notifier.skipForward(),
-                              onSkipBackward: () => notifier.skipBackward(),
-                              onSkipToStart: () =>
-                                  notifier.skipToPreviousTrack(),
-                              onSkipToEnd: () => notifier.skipToNextTrack(),
-                            ),
-
-                            // Compact volume slider on the right
-                            Positioned(
-                              right: 20,
-                              child: SizedBox(
-                                width: 100,
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      state.volume == 0
-                                          ? Icons.volume_off_rounded
-                                          : state.volume < 0.5
-                                          ? Icons.volume_down_rounded
-                                          : Icons.volume_up_rounded,
-                                      color: context.colors.textMuted
-                                          .withValues(alpha: 0.6),
-                                      size: 14,
-                                    ),
-                                    Expanded(
-                                      child: SliderTheme(
-                                        data: SliderTheme.of(context).copyWith(
-                                          trackHeight: 2,
-                                          thumbShape:
-                                              const RoundSliderThumbShape(
-                                                enabledThumbRadius: 3.5,
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isWide = constraints.maxWidth > 500;
+                          if (isWide) {
+                            // Wide layout: volume slider positioned to the right
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  TransportControls(
+                                    isPlaying: state.isPlaying,
+                                    isLoading: state.isLoading,
+                                    onPlayPause: () =>
+                                        notifier.togglePlayPause(),
+                                    onSkipForward: () => notifier.skipForward(),
+                                    onSkipBackward: () =>
+                                        notifier.skipBackward(),
+                                    onSkipToStart: () =>
+                                        notifier.skipToPreviousTrack(),
+                                    onSkipToEnd: () =>
+                                        notifier.skipToNextTrack(),
+                                  ),
+                                  Positioned(
+                                    right: 20,
+                                    child: SizedBox(
+                                      width: 100,
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            state.volume == 0
+                                                ? Icons.volume_off_rounded
+                                                : state.volume < 0.5
+                                                ? Icons.volume_down_rounded
+                                                : Icons.volume_up_rounded,
+                                            color: context.colors.textMuted
+                                                .withValues(alpha: 0.6),
+                                            size: 14,
+                                          ),
+                                          Expanded(
+                                            child: SliderTheme(
+                                              data: SliderTheme.of(context).copyWith(
+                                                trackHeight: 2,
+                                                thumbShape:
+                                                    const RoundSliderThumbShape(
+                                                      enabledThumbRadius: 3.5,
+                                                    ),
+                                                overlayShape:
+                                                    const RoundSliderOverlayShape(
+                                                      overlayRadius: 10,
+                                                    ),
+                                                activeTrackColor: Theme.of(
+                                                  context,
+                                                ).colorScheme.primary,
+                                                inactiveTrackColor: context
+                                                    .colors
+                                                    .surfaceBorder
+                                                    .withValues(alpha: 0.15),
+                                                thumbColor: Theme.of(
+                                                  context,
+                                                ).colorScheme.primary,
                                               ),
-                                          overlayShape:
-                                              const RoundSliderOverlayShape(
-                                                overlayRadius: 10,
+                                              child: Slider(
+                                                value: state.volume,
+                                                onChanged: (v) =>
+                                                    notifier.setVolume(v),
                                               ),
-                                          activeTrackColor: Theme.of(
-                                            context,
-                                          ).colorScheme.primary,
-                                          inactiveTrackColor: context
-                                              .colors
-                                              .surfaceBorder
-                                              .withValues(alpha: 0.15),
-                                          thumbColor: Theme.of(
-                                            context,
-                                          ).colorScheme.primary,
-                                        ),
-                                        child: Slider(
-                                          value: state.volume,
-                                          onChanged: (v) =>
-                                              notifier.setVolume(v),
-                                        ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
-                        ),
+                            );
+                          } else {
+                            // Narrow layout: transport controls + volume stacked vertically
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  TransportControls(
+                                    isPlaying: state.isPlaying,
+                                    isLoading: state.isLoading,
+                                    onPlayPause: () =>
+                                        notifier.togglePlayPause(),
+                                    onSkipForward: () => notifier.skipForward(),
+                                    onSkipBackward: () =>
+                                        notifier.skipBackward(),
+                                    onSkipToStart: () =>
+                                        notifier.skipToPreviousTrack(),
+                                    onSkipToEnd: () =>
+                                        notifier.skipToNextTrack(),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 40,
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          state.volume == 0
+                                              ? Icons.volume_off_rounded
+                                              : state.volume < 0.5
+                                              ? Icons.volume_down_rounded
+                                              : Icons.volume_up_rounded,
+                                          color: context.colors.textMuted
+                                              .withValues(alpha: 0.6),
+                                          size: 14,
+                                        ),
+                                        SizedBox(
+                                          width: 100,
+                                          child: SliderTheme(
+                                            data: SliderTheme.of(context).copyWith(
+                                              trackHeight: 2,
+                                              thumbShape:
+                                                  const RoundSliderThumbShape(
+                                                    enabledThumbRadius: 3.5,
+                                                  ),
+                                              overlayShape:
+                                                  const RoundSliderOverlayShape(
+                                                    overlayRadius: 10,
+                                                  ),
+                                              activeTrackColor: Theme.of(
+                                                context,
+                                              ).colorScheme.primary,
+                                              inactiveTrackColor: context
+                                                  .colors
+                                                  .surfaceBorder
+                                                  .withValues(alpha: 0.15),
+                                              thumbColor: Theme.of(
+                                                context,
+                                              ).colorScheme.primary,
+                                            ),
+                                            child: Slider(
+                                              value: state.volume,
+                                              onChanged: (v) =>
+                                                  notifier.setVolume(v),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                        },
                       ),
 
                       // Tempo/Pitch panels (expandable)
