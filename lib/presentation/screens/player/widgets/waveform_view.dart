@@ -208,14 +208,65 @@ class WaveformPainter extends CustomPainter {
       textDirection: TextDirection.ltr,
     )..layout();
 
-    final chipWidth = textPainter.width + 12;
+    final sectionWidth = endX - startX;
+    final maxChipWidth = sectionWidth - 4;
     final chipHeight = 18.0;
     final chipY = 6.0;
 
-    // Clamp so the chip doesn't overflow the waveform
+    if (maxChipWidth <= 8) return;
+
+    // Relayout with ellipsis if text is wider than the section allows
+    final constrainedTextWidth = maxChipWidth - 12;
+    if (textPainter.width > constrainedTextWidth) {
+      final ellipsizedPainter = TextPainter(
+        text: TextSpan(
+          text: label,
+          style: TextStyle(
+            color: section.color,
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.3,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+        ellipsis: '…',
+        maxLines: 1,
+      )..layout(maxWidth: constrainedTextWidth);
+
+      final chipWidth = ellipsizedPainter.width + 12;
+
+      final chipRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(startX + 2, chipY, chipWidth, chipHeight),
+        const Radius.circular(5),
+      );
+
+      final chipBg = Paint()
+        ..color = section.color.withValues(alpha: 0.2)
+        ..style = PaintingStyle.fill;
+      canvas.drawRRect(chipRect, chipBg);
+
+      final chipBorder = Paint()
+        ..color = section.color.withValues(alpha: 0.5)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.5;
+      canvas.drawRRect(chipRect, chipBorder);
+
+      ellipsizedPainter.paint(
+        canvas,
+        Offset(
+          startX + 2 + 6,
+          chipY + (chipHeight - ellipsizedPainter.height) / 2,
+        ),
+      );
+      return;
+    }
+
+    final chipWidth = textPainter.width + 12;
+
+    // Clamp so the chip doesn't overflow the section or the waveform
     final clampedCenterX = centerX.clamp(
-      chipWidth / 2,
-      totalWidth - chipWidth / 2,
+      startX + chipWidth / 2,
+      endX - chipWidth / 2,
     );
 
     final chipRect = RRect.fromRectAndRadius(
