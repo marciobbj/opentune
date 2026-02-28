@@ -87,10 +87,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
       final manager = FfmpegManager.instance;
 
-      // If the prompt was already shown once, just try to initialize silently
+      // If the prompt was already shown once, try to initialize silently.
+      // If initialization fails, allow re-prompt so the user can retry.
       if (await manager.isPromptShown) {
-        await manager.initialize();
-        return;
+        final initialized = await manager.initialize();
+        if (!initialized) {
+          await manager.resetPromptShown();
+        } else {
+          return;
+        }
       }
 
       // Try to find FFmpeg (might be on PATH already)

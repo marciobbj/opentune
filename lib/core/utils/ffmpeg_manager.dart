@@ -56,6 +56,12 @@ class FfmpegManager {
     await prefs.setBool(_prefKeyPromptShown, true);
   }
 
+  /// Clear the FFmpeg prompt flag to allow showing it again.
+  Future<void> resetPromptShown() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_prefKeyPromptShown);
+  }
+
   /// Initialize: detect FFmpeg on PATH or via stored local path.
   /// Returns true if FFmpeg is available.
   Future<bool> initialize() async {
@@ -73,18 +79,24 @@ class FfmpegManager {
     final prefs = await SharedPreferences.getInstance();
     final storedPath = prefs.getString(_prefKeyLocalPath);
     if (storedPath != null && await File(storedPath).exists()) {
-      _resolvedPath = storedPath;
-      _initialized = true;
-      return true;
+      if (await _isExecutableValid(storedPath)) {
+        _resolvedPath = storedPath;
+        _initialized = true;
+        return true;
+      }
+      await _clearStoredPath();
     }
 
     // 3. Check default local location (maybe downloaded but prefs lost)
     final defaultLocal = await _localBinaryPath();
     if (await File(defaultLocal).exists()) {
-      _resolvedPath = defaultLocal;
-      _initialized = true;
-      await _markComplete(defaultLocal);
-      return true;
+      if (await _isExecutableValid(defaultLocal)) {
+        _resolvedPath = defaultLocal;
+        _initialized = true;
+        await _markComplete(defaultLocal);
+        return true;
+      }
+      await _clearStoredPath();
     }
 
     return false;
@@ -173,6 +185,11 @@ class FfmpegManager {
     }
   }
 
+  Future<void> _clearStoredPath() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_prefKeyLocalPath);
+  }
+
   /// Check whether 'ffmpeg' is available on the system PATH.
   Future<bool> _isOnSystemPath() async {
     try {
@@ -183,11 +200,27 @@ class FfmpegManager {
     }
   }
 
+  Future<bool> _isExecutableValid(String executablePath) async {
+    try {
+      final result = await Process.run(executablePath, ['-version']);
+      return result.exitCode == 0;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// The expected local binary path under application support.
   Future<String> _localBinaryPath() async {
     final appDir = await getApplicationSupportDirectory();
+    final appName = path.basename(appDir.path);
+    final localAppData = Platform.isWindows
+        ? Platform.environment['LOCALAPPDATA']
+        : null;
+    final baseDir = localAppData != null && localAppData.isNotEmpty
+        ? path.join(localAppData, appName)
+        : appDir.path;
     final binaryName = Platform.isWindows ? 'ffmpeg.exe' : 'ffmpeg';
-    return path.join(appDir.path, 'ffmpeg', binaryName);
+    return path.join(baseDir, 'ffmpeg', binaryName);
   }
 
   /// Download URL for a static FFmpeg build.
@@ -242,18 +275,29 @@ class FfmpegManager {
           final archive = ZipDecoder().decodeStream(inputStream);
 
           String? ffmpegEntryName;
+          final targetDir = Directory(path.dirname(targetPath));
+          if (!await targetDir.exists()) {
+            await targetDir.create(recursive: true);
+          }
           for (final file in archive) {
-            if (file.isFile &&
-                path.basename(file.name).toLowerCase() == 'ffmpeg.exe') {
+            if (!file.isFile) continue;
+            final normalizedName = file.name.replaceAll('\\', '/');
+            if (!normalizedName.contains('/bin/')) continue;
+
+            final baseName = path.basename(file.name).toLowerCase();
+            final isFfmpeg = baseName == 'ffmpeg.exe';
+            final isDll = baseName.endsWith('.dll');
+            if (!isFfmpeg && !isDll) continue;
+
+            if (isFfmpeg) {
               ffmpegEntryName = file.name;
-              // Write ffmpeg.exe directly to extractDir for later copy
-              final outPath = path.join(extractDir.path, 'ffmpeg.exe');
-              final outputStream = OutputFileStream(outPath);
-              file.writeContent(outputStream);
-              outputStream.close();
-              debugPrint('FFmpeg: extracted ${file.name} -> $outPath');
-              break;
             }
+
+            final outPath = path.join(targetDir.path, baseName);
+            final outputStream = OutputFileStream(outPath);
+            file.writeContent(outputStream);
+            outputStream.close();
+            debugPrint('FFmpeg: extracted ${file.name} -> $outPath');
           }
           inputStream.close();
 
@@ -262,14 +306,13 @@ class FfmpegManager {
             return null;
           }
 
-          final extracted = File(path.join(extractDir.path, 'ffmpeg.exe'));
-          if (await extracted.exists()) {
-            await extracted.copy(targetPath);
-            debugPrint('FFmpeg: copied to $targetPath');
-            return targetPath;
+          final extracted = File(targetPath);
+          if (!await extracted.exists()) {
+            debugPrint('FFmpeg: extracted file missing after write');
+            return null;
           }
-          debugPrint('FFmpeg: extracted file missing after write');
-          return null;
+          debugPrint('FFmpeg: ready at $targetPath');
+          return targetPath;
         } catch (e, st) {
           debugPrint('FFmpeg: Dart ZIP extraction failed: $e');
           debugPrint('FFmpeg: stack trace: $st');
