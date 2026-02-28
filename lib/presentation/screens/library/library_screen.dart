@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:audio_metadata_reader/audio_metadata_reader.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
@@ -29,6 +30,50 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   String _searchQuery = '';
   TrackSortField _sortField = TrackSortField.dateAdded;
   bool _sortAscending = false;
+
+  // Multi-select state
+  bool _isSelectionMode = false;
+  final Set<int> _selectedTrackIds = {};
+
+  void _enterSelectionMode(Track track) {
+    setState(() {
+      _isSelectionMode = true;
+      _selectedTrackIds.add(track.id!);
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _isSelectionMode = false;
+      _selectedTrackIds.clear();
+    });
+  }
+
+  void _toggleTrackSelection(Track track) {
+    setState(() {
+      if (_selectedTrackIds.contains(track.id!)) {
+        _selectedTrackIds.remove(track.id!);
+        if (_selectedTrackIds.isEmpty) _isSelectionMode = false;
+      } else {
+        _selectedTrackIds.add(track.id!);
+      }
+    });
+  }
+
+  void _selectAllTracks() {
+    setState(() {
+      _selectedTrackIds.addAll(_filteredTracks.map((t) => t.id!));
+    });
+  }
+
+  void _deselectAllTracks() {
+    setState(() {
+      _selectedTrackIds.clear();
+    });
+  }
+
+  List<Track> get _selectedTracks =>
+      _allTracks.where((t) => _selectedTrackIds.contains(t.id)).toList();
 
   List<Track> get _filteredTracks {
     var tracks = List<Track>.from(_allTracks);
@@ -406,110 +451,235 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.colors.bgDarkest,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Library',
-                        style: TextStyle(
+      body: PopScope(
+        canPop: !_isSelectionMode,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop && _isSelectionMode) _exitSelectionMode();
+        },
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header — switches between normal and selection mode
+              _isSelectionMode ? _buildSelectionHeader() : _buildNormalHeader(),
+
+              // Content
+              Expanded(
+                child: _isLoading
+                    ? Center(
+                        child: CircularProgressIndicator(
                           color: Theme.of(context).colorScheme.primary,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w700,
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${_playlists.length} playlists · ${_allTracks.length} tracks',
-                        style: TextStyle(
-                          color: context.colors.textMuted,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Scan directory button
-                      IconButton(
-                        onPressed: _scanDirectory,
-                        tooltip: 'Scan directory',
-                        icon: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.primary.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(
-                            Icons.folder_open_rounded,
+                      )
+                    : Stack(
+                        children: [
+                          RefreshIndicator(
+                            onRefresh: _loadData,
                             color: Theme.of(context).colorScheme.primary,
-                            size: 22,
+                            child: _buildContent(),
                           ),
-                        ),
+                          if (_isSelectionMode && _selectedTrackIds.isNotEmpty)
+                            _buildSelectionActionBar(),
+                        ],
                       ),
-                      const SizedBox(width: 4),
-                      // Import track button
-                      IconButton(
-                        onPressed: _importTrack,
-                        tooltip: 'Import files',
-                        icon: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.primary.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(
-                            Icons.add_rounded,
-                            color: Theme.of(context).colorScheme.primary,
-                            size: 22,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+      floatingActionButton: _isSelectionMode
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: _showCreatePlaylistDialog,
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: context.colors.bgDarkest,
+              icon: const Icon(Icons.create_new_folder_rounded),
+              label: const Text(
+                'New Playlist',
+                style: TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
+    );
+  }
 
-            // Content
-            Expanded(
-              child: _isLoading
-                  ? Center(
-                      child: CircularProgressIndicator(
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _loadData,
-                      color: Theme.of(context).colorScheme.primary,
-                      child: _buildContent(),
-                    ),
+  Widget _buildNormalHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Library',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${_playlists.length} playlists \u00b7 ${_allTracks.length} tracks',
+                style: TextStyle(color: context.colors.textMuted, fontSize: 13),
+              ),
+            ],
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                onPressed: _scanDirectory,
+                tooltip: 'Scan directory',
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.folder_open_rounded,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 22,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                onPressed: _importTrack,
+                tooltip: 'Import files',
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.add_rounded,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 22,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSelectionHeader() {
+    final allSelected =
+        _filteredTracks.isNotEmpty &&
+        _filteredTracks.every((t) => _selectedTrackIds.contains(t.id));
+    return Container(
+      padding: const EdgeInsets.fromLTRB(8, 8, 12, 8),
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: _exitSelectionMode,
+            icon: Icon(
+              Icons.close_rounded,
+              color: context.colors.textPrimary,
+              size: 22,
+            ),
+            tooltip: 'Cancel selection',
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '${_selectedTrackIds.length} selected',
+            style: TextStyle(
+              color: context.colors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const Spacer(),
+          TextButton.icon(
+            onPressed: allSelected ? _deselectAllTracks : _selectAllTracks,
+            icon: Icon(
+              allSelected ? Icons.deselect_rounded : Icons.select_all_rounded,
+              size: 18,
+            ),
+            label: Text(allSelected ? 'None' : 'All'),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.primary,
+              textStyle: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSelectionActionBar() {
+    return Positioned(
+      left: 16,
+      right: 16,
+      bottom: 16,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: context.colors.bgCard,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: context.colors.surfaceBorder.withValues(alpha: 0.3),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.4),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showCreatePlaylistDialog,
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: context.colors.bgDarkest,
-        icon: const Icon(Icons.create_new_folder_rounded),
-        label: const Text(
-          'New Playlist',
-          style: TextStyle(fontWeight: FontWeight.w600),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _SelectionActionButton(
+              icon: Icons.playlist_add_rounded,
+              label: 'Playlist',
+              onTap: _bulkAddToPlaylist,
+            ),
+            Container(
+              width: 1,
+              height: 28,
+              color: context.colors.surfaceBorder.withValues(alpha: 0.3),
+            ),
+            _SelectionActionButton(
+              icon: Icons.edit_rounded,
+              label: 'Edit',
+              onTap: _bulkEditMetadata,
+            ),
+            Container(
+              width: 1,
+              height: 28,
+              color: context.colors.surfaceBorder.withValues(alpha: 0.3),
+            ),
+            _SelectionActionButton(
+              icon: Icons.delete_outline_rounded,
+              label: 'Remove',
+              color: context.colors.error,
+              onTap: _bulkDelete,
+            ),
+          ],
         ),
       ),
     );
@@ -763,22 +933,32 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           )
         else
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+            padding: EdgeInsets.fromLTRB(
+              16,
+              0,
+              16,
+              _isSelectionMode ? 80 : 100,
+            ),
             sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) => _TrackTile(
-                  track: _filteredTracks[index],
-                  onTap: () => _openTrackInPlayer(_filteredTracks[index]),
-                  onAddToPlaylist: () =>
-                      _showAddToPlaylistDialog(_filteredTracks[index]),
-                  onEditTrack: () => _editTrackMetadata(_filteredTracks[index]),
-                  onCopyMetadata: () =>
-                      _copyMetadataFromTrack(_filteredTracks[index]),
-                  onRemoveFromLibrary: () =>
-                      _removeTrackFromLibrary(_filteredTracks[index]),
-                ),
-                childCount: _filteredTracks.length,
-              ),
+              delegate: SliverChildBuilderDelegate((context, index) {
+                final track = _filteredTracks[index];
+                final isSelected = _selectedTrackIds.contains(track.id);
+                return _TrackTile(
+                  track: track,
+                  isSelectionMode: _isSelectionMode,
+                  isSelected: isSelected,
+                  onTap: _isSelectionMode
+                      ? () => _toggleTrackSelection(track)
+                      : () => _openTrackInPlayer(track),
+                  onLongPress: _isSelectionMode
+                      ? null
+                      : () => _enterSelectionMode(track),
+                  onAddToPlaylist: () => _showAddToPlaylistDialog(track),
+                  onEditTrack: () => _editTrackMetadata(track),
+                  onCopyMetadata: () => _copyMetadataFromTrack(track),
+                  onRemoveFromLibrary: () => _removeTrackFromLibrary(track),
+                );
+              }, childCount: _filteredTracks.length),
             ),
           ),
       ],
@@ -909,9 +1089,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     String metaArtist = 'Unknown Artist';
     String metaAlbum = '';
     Duration metaDuration = Duration.zero;
+    String? albumArtPath;
 
     try {
-      final metadata = readMetadata(f, getImage: false);
+      final metadata = readMetadata(f, getImage: true);
       if (metadata.title != null && metadata.title!.trim().isNotEmpty) {
         metaTitle = metadata.title!.trim();
       }
@@ -924,6 +1105,32 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       if (metadata.duration != null) {
         metaDuration = metadata.duration!;
       }
+      // Extract album art
+      if (metadata.pictures.isNotEmpty) {
+        final picture = metadata.pictures.first;
+        if (picture.bytes.isNotEmpty) {
+          try {
+            final appDir = await getApplicationDocumentsDirectory();
+            final artDir = Directory('${appDir.path}/album_art');
+            if (!await artDir.exists()) {
+              await artDir.create(recursive: true);
+            }
+            // Determine extension from mime type
+            final ext = switch (picture.mimetype.toLowerCase()) {
+              'image/png' => 'png',
+              'image/webp' => 'webp',
+              _ => 'jpg',
+            };
+            // Use a hash of the file path for uniqueness
+            final hash = filePath.hashCode.toUnsigned(32).toRadixString(16);
+            final artFile = File('${artDir.path}/$hash.$ext');
+            await artFile.writeAsBytes(picture.bytes);
+            albumArtPath = artFile.path;
+          } catch (_) {
+            // Failed to save album art — continue without it
+          }
+        }
+      }
     } catch (_) {
       // Metadata extraction failed — keep defaults from filename
     }
@@ -934,6 +1141,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       artist: metaArtist,
       album: metaAlbum,
       filePath: filePath,
+      albumArtPath: albumArtPath,
       duration: metaDuration,
       createdAt: now,
       updatedAt: now,
@@ -1056,6 +1264,311 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         );
       }
     }
+  }
+
+  // ── Bulk Actions ──
+
+  Future<void> _bulkDelete() async {
+    final count = _selectedTrackIds.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.colors.bgCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Remove $count track${count > 1 ? "s" : ""}?',
+          style: TextStyle(
+            color: context.colors.textPrimary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Text(
+          'This will remove the selected tracks from your library. The audio files will not be deleted from disk.',
+          style: TextStyle(color: context.colors.textSecondary, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: context.colors.textMuted),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: context.colors.error,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text(
+              'Remove',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    for (final id in _selectedTrackIds.toList()) {
+      await LocalDatabase.deleteTrack(id);
+    }
+    _exitSelectionMode();
+    await _loadData();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Removed $count track${count > 1 ? "s" : ""} from library',
+          ),
+          backgroundColor: context.colors.success,
+        ),
+      );
+    }
+  }
+
+  void _bulkAddToPlaylist() {
+    if (_playlists.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Create a playlist first'),
+          backgroundColor: context.colors.warning,
+        ),
+      );
+      return;
+    }
+
+    final count = _selectedTrackIds.length;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: context.colors.bgCard,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: context.colors.surfaceBorder,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Add $count track${count > 1 ? "s" : ""} to playlist',
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ..._playlists.map((playlist) {
+                  return ListTile(
+                    leading: Icon(
+                      Icons.folder_rounded,
+                      color:
+                          context.colors.markerColors[(playlist.id ?? 0) %
+                              context.colors.markerColors.length],
+                    ),
+                    title: Text(
+                      playlist.name,
+                      style: TextStyle(color: context.colors.textPrimary),
+                    ),
+                    subtitle: Text(
+                      '${playlist.trackIds.length} tracks',
+                      style: TextStyle(
+                        color: context.colors.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                    onTap: () async {
+                      int added = 0;
+                      for (final trackId in _selectedTrackIds) {
+                        if (!playlist.trackIds.contains(trackId)) {
+                          await LocalDatabase.addTrackToPlaylist(
+                            playlist.id!,
+                            trackId,
+                          );
+                          added++;
+                        }
+                      }
+                      if (ctx.mounted) Navigator.pop(ctx);
+                      _exitSelectionMode();
+                      _loadData();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Added $added track${added > 1 ? "s" : ""} to "${playlist.name}"',
+                            ),
+                            backgroundColor: context.colors.success,
+                          ),
+                        );
+                      }
+                    },
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _bulkEditMetadata() {
+    final artistController = TextEditingController();
+    final albumController = TextEditingController();
+    final count = _selectedTrackIds.length;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: context.colors.bgCard,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'Edit $count track${count > 1 ? "s" : ""}',
+            style: TextStyle(
+              color: context.colors.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          content: SizedBox(
+            width: 380,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Leave fields empty to keep current values',
+                  style: TextStyle(
+                    color: context.colors.textMuted,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: artistController,
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
+                    fontSize: 14,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Artist',
+                    labelStyle: TextStyle(color: context.colors.textMuted),
+                    prefixIcon: Icon(
+                      Icons.person_rounded,
+                      color: context.colors.textMuted,
+                      size: 20,
+                    ),
+                    filled: true,
+                    fillColor: context.colors.bgDark,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: albumController,
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
+                    fontSize: 14,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Album',
+                    labelStyle: TextStyle(color: context.colors.textMuted),
+                    prefixIcon: Icon(
+                      Icons.album_rounded,
+                      color: context.colors.textMuted,
+                      size: 20,
+                    ),
+                    filled: true,
+                    fillColor: context.colors.bgDark,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: context.colors.textMuted),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final newArtist = artistController.text.trim();
+                final newAlbum = albumController.text.trim();
+                if (newArtist.isEmpty && newAlbum.isEmpty) {
+                  Navigator.pop(ctx);
+                  return;
+                }
+                int updated = 0;
+                for (final track in _selectedTracks) {
+                  final updatedTrack = track.copyWith(
+                    artist: newArtist.isNotEmpty ? newArtist : null,
+                    album: newAlbum.isNotEmpty ? newAlbum : null,
+                    updatedAt: DateTime.now(),
+                  );
+                  await LocalDatabase.updateTrack(updatedTrack);
+                  ref
+                      .read(playerProvider.notifier)
+                      .updateCurrentTrackMetadata(updatedTrack);
+                  updated++;
+                }
+                if (ctx.mounted) Navigator.pop(ctx);
+                _exitSelectionMode();
+                await _loadData();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Updated $updated track${updated > 1 ? "s" : ""}',
+                      ),
+                      backgroundColor: context.colors.success,
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: context.colors.bgDarkest,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text(
+                'Apply',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _showCreatePlaylistDialog() {
@@ -1526,51 +2039,106 @@ class _PlaylistCard extends StatelessWidget {
 class _TrackTile extends StatelessWidget {
   final Track track;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
   final VoidCallback? onAddToPlaylist;
   final VoidCallback? onEditTrack;
   final VoidCallback? onCopyMetadata;
   final VoidCallback? onRemoveFromLibrary;
+  final bool isSelectionMode;
+  final bool isSelected;
 
   const _TrackTile({
     required this.track,
     this.onTap,
+    this.onLongPress,
     this.onAddToPlaylist,
     this.onEditTrack,
     this.onCopyMetadata,
     this.onRemoveFromLibrary,
+    this.isSelectionMode = false,
+    this.isSelected = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final primary = Theme.of(context).colorScheme.primary;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
       margin: const EdgeInsets.only(bottom: 6),
       decoration: BoxDecoration(
-        color: context.colors.bgCard.withValues(alpha: 0.4),
+        color: isSelected
+            ? primary.withValues(alpha: 0.12)
+            : context.colors.bgCard.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(12),
+        border: isSelected
+            ? Border.all(color: primary.withValues(alpha: 0.3), width: 1.5)
+            : null,
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
+          onLongPress: onLongPress,
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             child: Row(
               children: [
+                // Selection checkbox or album art
+                if (isSelectionMode)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 10),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isSelected ? primary : Colors.transparent,
+                        border: Border.all(
+                          color: isSelected
+                              ? primary
+                              : context.colors.textMuted.withValues(alpha: 0.4),
+                          width: 2,
+                        ),
+                      ),
+                      child: isSelected
+                          ? const Icon(
+                              Icons.check_rounded,
+                              size: 16,
+                              color: Colors.white,
+                            )
+                          : null,
+                    ),
+                  ),
                 Container(
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.1),
+                    color: primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(
-                    Icons.music_note_rounded,
-                    color: Theme.of(context).colorScheme.primary,
-                    size: 20,
-                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child:
+                      track.albumArtPath != null &&
+                          File(track.albumArtPath!).existsSync()
+                      ? Image.file(
+                          File(track.albumArtPath!),
+                          width: 42,
+                          height: 42,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Icon(
+                            Icons.music_note_rounded,
+                            color: primary,
+                            size: 20,
+                          ),
+                        )
+                      : Icon(
+                          Icons.music_note_rounded,
+                          color: primary,
+                          size: 20,
+                        ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1599,52 +2167,101 @@ class _TrackTile extends StatelessWidget {
                     ],
                   ),
                 ),
-                PopupMenuButton<String>(
-                  icon: Icon(
-                    Icons.more_vert_rounded,
-                    color: context.colors.textMuted,
-                    size: 20,
+                if (!isSelectionMode)
+                  PopupMenuButton<String>(
+                    icon: Icon(
+                      Icons.more_vert_rounded,
+                      color: context.colors.textMuted,
+                      size: 20,
+                    ),
+                    color: context.colors.bgCard,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    onSelected: (value) {
+                      if (value == 'add') onAddToPlaylist?.call();
+                      if (value == 'edit') onEditTrack?.call();
+                      if (value == 'copy_meta') onCopyMetadata?.call();
+                      if (value == 'remove') onRemoveFromLibrary?.call();
+                    },
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'add',
+                        child: Text(
+                          'Add to playlist',
+                          style: TextStyle(color: context.colors.textPrimary),
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: Text(
+                          'Edit metadata',
+                          style: TextStyle(color: context.colors.textPrimary),
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'copy_meta',
+                        child: Text(
+                          'Copy metadata from...',
+                          style: TextStyle(color: context.colors.textPrimary),
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'remove',
+                        child: Text(
+                          'Remove from library',
+                          style: TextStyle(color: context.colors.error),
+                        ),
+                      ),
+                    ],
                   ),
-                  color: context.colors.bgCard,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Selection Action Button ──
+
+class _SelectionActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color? color;
+
+  const _SelectionActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? context.colors.textPrimary;
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: c, size: 22),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: c,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
                   ),
-                  onSelected: (value) {
-                    if (value == 'add') onAddToPlaylist?.call();
-                    if (value == 'edit') onEditTrack?.call();
-                    if (value == 'copy_meta') onCopyMetadata?.call();
-                    if (value == 'remove') onRemoveFromLibrary?.call();
-                  },
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'add',
-                      child: Text(
-                        'Add to playlist',
-                        style: TextStyle(color: context.colors.textPrimary),
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'edit',
-                      child: Text(
-                        'Edit metadata',
-                        style: TextStyle(color: context.colors.textPrimary),
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'copy_meta',
-                      child: Text(
-                        'Copy metadata from...',
-                        style: TextStyle(color: context.colors.textPrimary),
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'remove',
-                      child: Text(
-                        'Remove from library',
-                        style: TextStyle(color: context.colors.error),
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),

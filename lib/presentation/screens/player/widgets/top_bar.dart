@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../domain/entities/section.dart';
@@ -5,6 +6,7 @@ import '../../../../domain/entities/section.dart';
 class TopBar extends StatelessWidget {
   final String trackTitle;
   final String trackArtist;
+  final String? albumArtPath;
   final Duration duration;
   final Duration position;
   final List<Section> sections;
@@ -20,6 +22,7 @@ class TopBar extends StatelessWidget {
     super.key,
     required this.trackTitle,
     required this.trackArtist,
+    this.albumArtPath,
     required this.duration,
     required this.position,
     this.sections = const [],
@@ -57,27 +60,62 @@ class TopBar extends StatelessWidget {
                   onPressed: onBackPressed,
                 ),
               Expanded(
-                child: Column(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      trackTitle,
-                      style: TextStyle(
-                        color: context.colors.textPrimary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                    if (albumArtPath != null &&
+                        File(albumArtPath!).existsSync())
+                      Padding(
+                        padding: const EdgeInsets.only(right: 10),
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.3),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: Image.file(
+                            File(albumArtPath!),
+                            width: 36,
+                            height: 36,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                                const SizedBox.shrink(),
+                          ),
+                        ),
                       ),
-                      textAlign: TextAlign.center,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      trackArtist,
-                      style: TextStyle(
-                        color: context.colors.textMuted,
-                        fontSize: 12,
+                    Flexible(
+                      child: Column(
+                        children: [
+                          Text(
+                            trackTitle,
+                            style: TextStyle(
+                              color: context.colors.textPrimary,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            textAlign: TextAlign.center,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            trackArtist,
+                            style: TextStyle(
+                              color: context.colors.textMuted,
+                              fontSize: 12,
+                            ),
+                            textAlign: TextAlign.center,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
-                      textAlign: TextAlign.center,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -254,12 +292,19 @@ class _SectionTimelineState extends State<_SectionTimeline> {
                             _dragOffsetX = newOffsetX;
                           });
                           // Notify parent of live drag position
-                          final newStartMs = (newOffsetX / width * totalMs).round().clamp(0, totalMs.round());
-                          final newEndMs = (newStartMs + sectionMs).clamp(0, totalMs.round());
-                          widget.onSectionDragging?.call(section.copyWith(
-                            startTime: Duration(milliseconds: newStartMs),
-                            endTime: Duration(milliseconds: newEndMs),
-                          ));
+                          final newStartMs = (newOffsetX / width * totalMs)
+                              .round()
+                              .clamp(0, totalMs.round());
+                          final newEndMs = (newStartMs + sectionMs).clamp(
+                            0,
+                            totalMs.round(),
+                          );
+                          widget.onSectionDragging?.call(
+                            section.copyWith(
+                              startTime: Duration(milliseconds: newStartMs),
+                              endTime: Duration(milliseconds: newEndMs),
+                            ),
+                          );
                         }
                       : null,
                   onHorizontalDragEnd: widget.onSectionUpdated != null

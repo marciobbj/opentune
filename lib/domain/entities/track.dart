@@ -4,6 +4,7 @@ class Track {
   final String artist;
   final String album;
   final String filePath;
+  final String? albumArtPath;
   final Duration duration;
   final double originalBpm;
   final DateTime createdAt;
@@ -15,6 +16,7 @@ class Track {
     required this.artist,
     this.album = '',
     required this.filePath,
+    this.albumArtPath,
     required this.duration,
     this.originalBpm = 120.0,
     required this.createdAt,
@@ -27,6 +29,7 @@ class Track {
     String? artist,
     String? album,
     String? filePath,
+    String? albumArtPath,
     Duration? duration,
     double? originalBpm,
     DateTime? createdAt,
@@ -38,6 +41,7 @@ class Track {
       artist: artist ?? this.artist,
       album: album ?? this.album,
       filePath: filePath ?? this.filePath,
+      albumArtPath: albumArtPath ?? this.albumArtPath,
       duration: duration ?? this.duration,
       originalBpm: originalBpm ?? this.originalBpm,
       createdAt: createdAt ?? this.createdAt,
@@ -52,6 +56,7 @@ class Track {
       'artist': artist,
       'album': album,
       'filePath': filePath,
+      'albumArtPath': albumArtPath,
       'durationMs': duration.inMilliseconds,
       'originalBpm': originalBpm,
       'createdAt': createdAt.toIso8601String(),
@@ -66,6 +71,7 @@ class Track {
       artist: map['artist'] as String,
       album: map['album'] as String? ?? '',
       filePath: map['filePath'] as String,
+      albumArtPath: map['albumArtPath'] as String?,
       duration: Duration(milliseconds: map['durationMs'] as int),
       originalBpm: (map['originalBpm'] as num?)?.toDouble() ?? 120.0,
       createdAt: DateTime.parse(map['createdAt'] as String),

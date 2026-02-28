@@ -8,7 +8,7 @@ import '../../domain/entities/playlist.dart';
 class LocalDatabase {
   static Database? _database;
   static const String _dbName = 'opentune.db';
-  static const int _dbVersion = 1;
+  static const int _dbVersion = 2;
 
   static Future<Database> get database async {
     _database ??= await _initDatabase();
@@ -26,6 +26,7 @@ class LocalDatabase {
         await db.execute('PRAGMA foreign_keys = ON');
       },
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -36,6 +37,7 @@ class LocalDatabase {
         title TEXT NOT NULL,
         artist TEXT NOT NULL,
         album TEXT DEFAULT '',
+        albumArtPath TEXT,
         filePath TEXT NOT NULL UNIQUE,
         durationMs INTEGER NOT NULL,
         originalBpm REAL DEFAULT 120.0,
@@ -93,6 +95,16 @@ class LocalDatabase {
     ''');
   }
 
+  static Future<void> _onUpgrade(
+    Database db,
+    int oldVersion,
+    int newVersion,
+  ) async {
+    if (oldVersion < 2) {
+      await db.execute('ALTER TABLE tracks ADD COLUMN albumArtPath TEXT');
+    }
+  }
+
   // ── Track CRUD ──
 
   static Future<int> insertTrack(Track track) async {
@@ -115,8 +127,11 @@ class LocalDatabase {
 
   static Future<Track?> getTrackByPath(String filePath) async {
     final db = await database;
-    final maps = await db.query('tracks',
-        where: 'filePath = ?', whereArgs: [filePath]);
+    final maps = await db.query(
+      'tracks',
+      where: 'filePath = ?',
+      whereArgs: [filePath],
+    );
     if (maps.isEmpty) return null;
     return Track.fromMap(maps.first);
   }
@@ -223,8 +238,7 @@ class LocalDatabase {
         whereArgs: [map['id']],
         orderBy: 'orderIndex ASC',
       );
-      final trackIds =
-          trackMaps.map((m) => m['trackId'] as int).toList();
+      final trackIds = trackMaps.map((m) => m['trackId'] as int).toList();
       playlists.add(Playlist.fromMap(map).copyWith(trackIds: trackIds));
     }
 
@@ -244,8 +258,7 @@ class LocalDatabase {
       'playlist_tracks',
       where: 'playlistId = ?',
       whereArgs: [playlistId],
-    ))
-        .length;
+    )).length;
 
     await db.insert('playlist_tracks', {
       'playlistId': playlistId,
@@ -255,7 +268,9 @@ class LocalDatabase {
   }
 
   static Future<void> removeTrackFromPlaylist(
-      int playlistId, int trackId) async {
+    int playlistId,
+    int trackId,
+  ) async {
     final db = await database;
     await db.delete(
       'playlist_tracks',

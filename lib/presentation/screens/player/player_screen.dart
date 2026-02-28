@@ -57,6 +57,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       if (_showPitchPanel) _showTempoPanel = false;
     });
   }
+
   void _toggleQueuePanel() {
     setState(() => _showQueuePanel = !_showQueuePanel);
   }
@@ -89,12 +90,20 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                     children: [
                       // Top bar
                       TopBar(
-                        trackTitle: state.currentTrack?.title ?? 'No Track Loaded',
+                        trackTitle:
+                            state.currentTrack?.title ?? 'No Track Loaded',
                         trackArtist: state.currentTrack != null
-                            ? [state.currentTrack!.artist, state.currentTrack!.album]
-                                  .where((s) => s.isNotEmpty && s != 'Unknown Artist')
+                            ? [
+                                    state.currentTrack!.artist,
+                                    state.currentTrack!.album,
+                                  ]
+                                  .where(
+                                    (s) =>
+                                        s.isNotEmpty && s != 'Unknown Artist',
+                                  )
                                   .join(' — ')
                             : 'Import a track to start practicing',
+                        albumArtPath: state.currentTrack?.albumArtPath,
                         duration: state.duration,
                         position: state.position,
                         sections: state.sections,
@@ -103,7 +112,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                         onQueueToggle: _toggleQueuePanel,
                         isQueueOpen: _showQueuePanel,
                         queueCount: state.queue.length,
-                        onSectionUpdated: (section) => notifier.updateSection(section),
+                        onSectionUpdated: (section) =>
+                            notifier.updateSection(section),
                         onSectionDragging: _onSectionDragging,
                         draggingSection: _draggingSection,
                       ),
@@ -125,8 +135,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                               loopStart: state.settings.loopStart,
                               loopEnd: state.settings.loopEnd,
                               loopEnabled: state.settings.loopEnabled,
-                              onSeek: (progress) => notifier.seekToProgress(progress),
-                              onSectionUpdated: (section) => notifier.updateSection(section),
+                              onSeek: (progress) =>
+                                  notifier.seekToProgress(progress),
+                              onSectionUpdated: (section) =>
+                                  notifier.updateSection(section),
                               onSectionDragging: _onSectionDragging,
                               draggingSection: _draggingSection,
                             ),
@@ -146,14 +158,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                               duration: const Duration(milliseconds: 400),
                               child: MiniWaveform(
                                 key: ValueKey(state.waveformData),
-                                waveformData: state.waveformData ?? _demoWaveform,
+                                waveformData:
+                                    state.waveformData ?? _demoWaveform,
                                 progress: state.progress,
                                 duration: state.duration,
                                 sections: state.sections,
                                 loopStart: state.settings.loopStart,
                                 loopEnd: state.settings.loopEnd,
                                 loopEnabled: state.settings.loopEnabled,
-                        onSeek: (progress) => notifier.seekToProgress(progress),
+                                onSeek: (progress) =>
+                                    notifier.seekToProgress(progress),
                               ),
                             ),
                             const SizedBox(height: 6),
@@ -165,7 +179,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                                   style: TextStyle(
                                     color: context.colors.textMuted,
                                     fontSize: 12,
-                                    fontFeatures: [FontFeature.tabularFigures()],
+                                    fontFeatures: [
+                                      FontFeature.tabularFigures(),
+                                    ],
                                   ),
                                 ),
                                 Text(
@@ -173,7 +189,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                                   style: TextStyle(
                                     color: context.colors.textMuted,
                                     fontSize: 12,
-                                    fontFeatures: [FontFeature.tabularFigures()],
+                                    fontFeatures: [
+                                      FontFeature.tabularFigures(),
+                                    ],
                                   ),
                                 ),
                               ],
@@ -195,7 +213,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                               onPlayPause: () => notifier.togglePlayPause(),
                               onSkipForward: () => notifier.skipForward(),
                               onSkipBackward: () => notifier.skipBackward(),
-                              onSkipToStart: () => notifier.skipToPreviousTrack(),
+                              onSkipToStart: () =>
+                                  notifier.skipToPreviousTrack(),
                               onSkipToEnd: () => notifier.skipToNextTrack(),
                             ),
 
@@ -212,21 +231,22 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                                           : state.volume < 0.5
                                           ? Icons.volume_down_rounded
                                           : Icons.volume_up_rounded,
-                                      color: context.colors.textMuted.withValues(
-                                        alpha: 0.6,
-                                      ),
+                                      color: context.colors.textMuted
+                                          .withValues(alpha: 0.6),
                                       size: 14,
                                     ),
                                     Expanded(
                                       child: SliderTheme(
                                         data: SliderTheme.of(context).copyWith(
                                           trackHeight: 2,
-                                          thumbShape: const RoundSliderThumbShape(
-                                            enabledThumbRadius: 3.5,
-                                          ),
-                                          overlayShape: const RoundSliderOverlayShape(
-                                            overlayRadius: 10,
-                                          ),
+                                          thumbShape:
+                                              const RoundSliderThumbShape(
+                                                enabledThumbRadius: 3.5,
+                                              ),
+                                          overlayShape:
+                                              const RoundSliderOverlayShape(
+                                                overlayRadius: 10,
+                                              ),
                                           activeTrackColor: Theme.of(
                                             context,
                                           ).colorScheme.primary,
@@ -240,7 +260,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                                         ),
                                         child: Slider(
                                           value: state.volume,
-                                          onChanged: (v) => notifier.setVolume(v),
+                                          onChanged: (v) =>
+                                              notifier.setVolume(v),
                                         ),
                                       ),
                                     ),
@@ -299,15 +320,20 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.easeInOut,
                     width: _showQueuePanel
-                        ? (MediaQuery.of(context).size.width * 0.3).clamp(200.0, 350.0)
+                        ? (MediaQuery.of(context).size.width * 0.3).clamp(
+                            200.0,
+                            350.0,
+                          )
                         : 0,
                     child: _showQueuePanel
                         ? QueuePanel(
                             queue: state.queue,
                             currentIndex: state.queueIndex,
                             onClose: _toggleQueuePanel,
-                            onTapTrack: (index) => notifier.skipToQueueIndex(index),
-                            onRemoveTrack: (index) => notifier.removeFromQueue(index),
+                            onTapTrack: (index) =>
+                                notifier.skipToQueueIndex(index),
+                            onRemoveTrack: (index) =>
+                                notifier.removeFromQueue(index),
                             onReorder: (oldIndex, newIndex) =>
                                 notifier.reorderQueue(oldIndex, newIndex),
                           )
