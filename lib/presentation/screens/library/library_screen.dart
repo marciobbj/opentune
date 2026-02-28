@@ -36,11 +36,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     // Filter by search query
     if (_searchQuery.isNotEmpty) {
       final q = _searchQuery.toLowerCase();
-      tracks = tracks.where((t) =>
-        t.title.toLowerCase().contains(q) ||
-        t.artist.toLowerCase().contains(q) ||
-        t.album.toLowerCase().contains(q)
-      ).toList();
+      tracks = tracks
+          .where(
+            (t) =>
+                t.title.toLowerCase().contains(q) ||
+                t.artist.toLowerCase().contains(q) ||
+                t.album.toLowerCase().contains(q),
+          )
+          .toList();
     }
 
     // Sort
@@ -138,7 +141,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   Future<void> _copyMetadataFromTrack(Track targetTrack) async {
     final searchController = TextEditingController();
-    final otherTracks = _allTracks.where((t) => t.id != targetTrack.id).toList();
+    final otherTracks = _allTracks
+        .where((t) => t.id != targetTrack.id)
+        .toList();
     var filtered = List<Track>.from(otherTracks);
     final fields = {'title': false, 'artist': true, 'album': true};
 
@@ -182,7 +187,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       runSpacing: 4,
                       children: fields.keys.map((field) {
                         final checked = fields[field]!;
-                        final label = field[0].toUpperCase() + field.substring(1);
+                        final label =
+                            field[0].toUpperCase() + field.substring(1);
                         return FilterChip(
                           selected: checked,
                           label: Text(
@@ -192,7 +198,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                                   ? context.colors.bgDarkest
                                   : context.colors.textSecondary,
                               fontSize: 12,
-                              fontWeight: checked ? FontWeight.w600 : FontWeight.w400,
+                              fontWeight: checked
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
                             ),
                           ),
                           selectedColor: Theme.of(context).colorScheme.primary,
@@ -201,7 +209,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                           side: BorderSide(
                             color: checked
                                 ? Theme.of(context).colorScheme.primary
-                                : context.colors.surfaceBorder.withValues(alpha: 0.3),
+                                : context.colors.surfaceBorder.withValues(
+                                    alpha: 0.3,
+                                  ),
                           ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -224,11 +234,16 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     const SizedBox(height: 8),
                     TextField(
                       controller: searchController,
-                      style: TextStyle(color: context.colors.textPrimary, fontSize: 14),
+                      style: TextStyle(
+                        color: context.colors.textPrimary,
+                        fontSize: 14,
+                      ),
                       decoration: InputDecoration(
                         hintText: 'Search tracks...',
                         hintStyle: TextStyle(
-                          color: context.colors.textMuted.withValues(alpha: 0.5),
+                          color: context.colors.textMuted.withValues(
+                            alpha: 0.5,
+                          ),
                         ),
                         prefixIcon: Icon(
                           Icons.search_rounded,
@@ -252,7 +267,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                             : null,
                         filled: true,
                         fillColor: context.colors.bgDark,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
                           borderSide: BorderSide.none,
@@ -262,9 +280,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                         setDialogState(() {
                           final q = query.toLowerCase();
                           filtered = otherTracks
-                              .where((t) =>
-                                  t.title.toLowerCase().contains(q) ||
-                                  t.artist.toLowerCase().contains(q))
+                              .where(
+                                (t) =>
+                                    t.title.toLowerCase().contains(q) ||
+                                    t.artist.toLowerCase().contains(q),
+                              )
                               .toList();
                         });
                       },
@@ -286,7 +306,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                               itemCount: filtered.length,
                               itemBuilder: (context, index) {
                                 final track = filtered[index];
-                                final hasSelection = fields.values.any((v) => v);
+                                final hasSelection = fields.values.any(
+                                  (v) => v,
+                                );
                                 return ListTile(
                                   dense: true,
                                   enabled: hasSelection,
@@ -315,7 +337,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                                   leading: Icon(
                                     Icons.music_note_rounded,
                                     color: hasSelection
-                                        ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.6)
+                                        ? Theme.of(context).colorScheme.primary
+                                              .withValues(alpha: 0.6)
                                         : context.colors.textDisabled,
                                     size: 20,
                                   ),
@@ -324,9 +347,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                                   ),
                                   onTap: hasSelection
                                       ? () => Navigator.pop(ctx, {
-                                            'track': track,
-                                            'fields': Map<String, bool>.from(fields),
-                                          })
+                                          'track': track,
+                                          'fields': Map<String, bool>.from(
+                                            fields,
+                                          ),
+                                        })
                                       : null,
                                 );
                               },
@@ -412,23 +437,49 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       ),
                     ],
                   ),
-                  // Import track button
-                  IconButton(
-                    onPressed: _importTrack,
-                    icon: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.primary.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Scan directory button
+                      IconButton(
+                        onPressed: _scanDirectory,
+                        tooltip: 'Scan directory',
+                        icon: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.folder_open_rounded,
+                            color: Theme.of(context).colorScheme.primary,
+                            size: 22,
+                          ),
+                        ),
                       ),
-                      child: Icon(
-                        Icons.add_rounded,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 22,
+                      const SizedBox(width: 4),
+                      // Import track button
+                      IconButton(
+                        onPressed: _importTrack,
+                        tooltip: 'Import files',
+                        icon: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.add_rounded,
+                            color: Theme.of(context).colorScheme.primary,
+                            size: 22,
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ],
               ),
@@ -549,7 +600,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   // Search field
                   TextField(
                     controller: _searchController,
-                    style: TextStyle(color: context.colors.textPrimary, fontSize: 14),
+                    style: TextStyle(
+                      color: context.colors.textPrimary,
+                      fontSize: 14,
+                    ),
                     decoration: InputDecoration(
                       hintText: 'Search by title, artist, album...',
                       hintStyle: TextStyle(
@@ -577,7 +631,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                           : null,
                       filled: true,
                       fillColor: context.colors.bgDark,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                         borderSide: BorderSide.none,
@@ -614,15 +671,20 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                                           ? context.colors.bgDarkest
                                           : context.colors.textSecondary,
                                       fontSize: 12,
-                                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                                      fontWeight: selected
+                                          ? FontWeight.w600
+                                          : FontWeight.w400,
                                     ),
                                   ),
-                                  selectedColor: Theme.of(context).colorScheme.primary,
+                                  selectedColor: Theme.of(
+                                    context,
+                                  ).colorScheme.primary,
                                   backgroundColor: context.colors.bgDark,
                                   side: BorderSide(
                                     color: selected
                                         ? Theme.of(context).colorScheme.primary
-                                        : context.colors.surfaceBorder.withValues(alpha: 0.3),
+                                        : context.colors.surfaceBorder
+                                              .withValues(alpha: 0.3),
                                   ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
@@ -635,7 +697,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                                         _sortAscending = !_sortAscending;
                                       } else {
                                         _sortField = field;
-                                        _sortAscending = field == TrackSortField.title ||
+                                        _sortAscending =
+                                            field == TrackSortField.title ||
                                             field == TrackSortField.artist ||
                                             field == TrackSortField.album;
                                       }
@@ -658,7 +721,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                             color: context.colors.bgDark,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: context.colors.surfaceBorder.withValues(alpha: 0.3),
+                              color: context.colors.surfaceBorder.withValues(
+                                alpha: 0.3,
+                              ),
                             ),
                           ),
                           child: Icon(
@@ -815,21 +880,73 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     ref.read(navigationProvider.notifier).state = 1;
   }
 
+  static const _audioExtensions = {
+    'mp3',
+    'flac',
+    'wav',
+    'ogg',
+    'aac',
+    'm4a',
+    'opus',
+    'wma',
+    'aiff',
+  };
+
+  /// Imports a single audio file: reads metadata, creates Track, inserts into DB.
+  /// Returns true if the track was actually imported (not a duplicate).
+  Future<bool> _importAudioFile(File f) async {
+    final filePath = f.path;
+    final existing = await LocalDatabase.getTrackByPath(filePath);
+    if (existing != null) return false;
+
+    final fileName = filePath.split('/').last;
+    final nameWithoutExt = fileName.contains('.')
+        ? fileName.substring(0, fileName.lastIndexOf('.'))
+        : fileName;
+
+    // Read metadata from the audio file
+    String metaTitle = nameWithoutExt;
+    String metaArtist = 'Unknown Artist';
+    String metaAlbum = '';
+    Duration metaDuration = Duration.zero;
+
+    try {
+      final metadata = readMetadata(f, getImage: false);
+      if (metadata.title != null && metadata.title!.trim().isNotEmpty) {
+        metaTitle = metadata.title!.trim();
+      }
+      if (metadata.artist != null && metadata.artist!.trim().isNotEmpty) {
+        metaArtist = metadata.artist!.trim();
+      }
+      if (metadata.album != null && metadata.album!.trim().isNotEmpty) {
+        metaAlbum = metadata.album!.trim();
+      }
+      if (metadata.duration != null) {
+        metaDuration = metadata.duration!;
+      }
+    } catch (_) {
+      // Metadata extraction failed — keep defaults from filename
+    }
+
+    final now = DateTime.now();
+    final track = Track(
+      title: metaTitle,
+      artist: metaArtist,
+      album: metaAlbum,
+      filePath: filePath,
+      duration: metaDuration,
+      createdAt: now,
+      updatedAt: now,
+    );
+    await LocalDatabase.insertTrack(track);
+    return true;
+  }
+
   Future<void> _importTrack() async {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: [
-          'mp3',
-          'flac',
-          'wav',
-          'ogg',
-          'aac',
-          'm4a',
-          'opus',
-          'wma',
-          'aiff',
-        ],
+        allowedExtensions: _audioExtensions.toList(),
         dialogTitle: 'Select audio files',
         allowMultiple: true,
       );
@@ -840,51 +957,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         if (file.path == null) continue;
         final f = File(file.path!);
         if (!await f.exists()) continue;
-
-        final existing = await LocalDatabase.getTrackByPath(file.path!);
-        if (existing != null) continue;
-
-        final fileName = file.path!.split('/').last;
-        final nameWithoutExt = fileName.contains('.')
-            ? fileName.substring(0, fileName.lastIndexOf('.'))
-            : fileName;
-
-        // Read metadata from the audio file
-        String metaTitle = nameWithoutExt;
-        String metaArtist = 'Unknown Artist';
-        String metaAlbum = '';
-        Duration metaDuration = Duration.zero;
-
-        try {
-          final metadata = readMetadata(f, getImage: false);
-          if (metadata.title != null && metadata.title!.trim().isNotEmpty) {
-            metaTitle = metadata.title!.trim();
-          }
-          if (metadata.artist != null && metadata.artist!.trim().isNotEmpty) {
-            metaArtist = metadata.artist!.trim();
-          }
-          if (metadata.album != null && metadata.album!.trim().isNotEmpty) {
-            metaAlbum = metadata.album!.trim();
-          }
-          if (metadata.duration != null) {
-            metaDuration = metadata.duration!;
-          }
-        } catch (_) {
-          // Metadata extraction failed — keep defaults from filename
-        }
-
-        final now = DateTime.now();
-        final track = Track(
-          title: metaTitle,
-          artist: metaArtist,
-          album: metaAlbum,
-          filePath: file.path!,
-          duration: metaDuration,
-          createdAt: now,
-          updatedAt: now,
-        );
-        await LocalDatabase.insertTrack(track);
-        imported++;
+        if (await _importAudioFile(f)) imported++;
       }
 
       if (mounted && imported > 0) {
@@ -901,6 +974,83 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error importing: $e'),
+            backgroundColor: context.colors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _scanDirectory() async {
+    try {
+      final dirPath = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Select directory to scan',
+      );
+      if (dirPath == null) return;
+
+      final dir = Directory(dirPath);
+      if (!await dir.exists()) return;
+
+      // Show a scanning indicator
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: context.colors.bgDarkest,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text('Scanning directory...'),
+              ],
+            ),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            duration: const Duration(seconds: 60),
+          ),
+        );
+      }
+
+      int imported = 0;
+      int scanned = 0;
+
+      await for (final entity in dir.list(
+        recursive: true,
+        followLinks: false,
+      )) {
+        if (entity is! File) continue;
+        final ext = entity.path.split('.').last.toLowerCase();
+        if (!_audioExtensions.contains(ext)) continue;
+        scanned++;
+        if (await _importAudioFile(entity)) imported++;
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              imported > 0
+                  ? 'Imported $imported new track${imported > 1 ? "s" : ""} (scanned $scanned files)'
+                  : 'No new tracks found ($scanned files scanned)',
+            ),
+            backgroundColor: imported > 0
+                ? context.colors.success
+                : context.colors.warning,
+          ),
+        );
+        if (imported > 0) _loadData();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error scanning: $e'),
             backgroundColor: context.colors.error,
           ),
         );
