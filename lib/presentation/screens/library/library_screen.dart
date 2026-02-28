@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:audio_metadata_reader/audio_metadata_reader.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -710,22 +711,32 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           SliverToBoxAdapter(
             child: SizedBox(
               height: 140,
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                scrollDirection: Axis.horizontal,
-                itemCount: _playlists.length,
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: _PlaylistCard(
-                      playlist: _playlists[index],
-                      trackCount: _playlists[index].trackIds.length,
-                      onTap: () => _openPlaylist(_playlists[index]),
-                      onOptionsTap: () =>
-                          _showPlaylistOptions(_playlists[index]),
-                    ),
-                  );
-                },
+              child: ScrollConfiguration(
+                behavior: ScrollConfiguration.of(context).copyWith(
+                  dragDevices: {
+                    PointerDeviceKind.touch,
+                    PointerDeviceKind.mouse,
+                    PointerDeviceKind.stylus,
+                    PointerDeviceKind.trackpad,
+                  },
+                ),
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _playlists.length,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: _PlaylistCard(
+                        playlist: _playlists[index],
+                        trackCount: _playlists[index].trackIds.length,
+                        onTap: () => _openPlaylist(_playlists[index]),
+                        onOptionsTap: () =>
+                            _showPlaylistOptions(_playlists[index]),
+                      ),
+                    );
+                  },
+                ),
               ),
             ),
           ),
