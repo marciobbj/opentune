@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:audio_metadata_reader/audio_metadata_reader.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -848,12 +849,37 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             ? fileName.substring(0, fileName.lastIndexOf('.'))
             : fileName;
 
+        // Read metadata from the audio file
+        String metaTitle = nameWithoutExt;
+        String metaArtist = 'Unknown Artist';
+        String metaAlbum = '';
+        Duration metaDuration = Duration.zero;
+
+        try {
+          final metadata = readMetadata(f, getImage: false);
+          if (metadata.title != null && metadata.title!.trim().isNotEmpty) {
+            metaTitle = metadata.title!.trim();
+          }
+          if (metadata.artist != null && metadata.artist!.trim().isNotEmpty) {
+            metaArtist = metadata.artist!.trim();
+          }
+          if (metadata.album != null && metadata.album!.trim().isNotEmpty) {
+            metaAlbum = metadata.album!.trim();
+          }
+          if (metadata.duration != null) {
+            metaDuration = metadata.duration!;
+          }
+        } catch (_) {
+          // Metadata extraction failed — keep defaults from filename
+        }
+
         final now = DateTime.now();
         final track = Track(
-          title: nameWithoutExt,
-          artist: 'Unknown Artist',
+          title: metaTitle,
+          artist: metaArtist,
+          album: metaAlbum,
           filePath: file.path!,
-          duration: Duration.zero,
+          duration: metaDuration,
           createdAt: now,
           updatedAt: now,
         );
