@@ -92,6 +92,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   final List<StreamSubscription> _subscriptions = [];
 
   PlayerNotifier(this._player) : super(const PlayerState()) {
+    _player.setVolume(0.3);
     _listenToPlayer();
   }
 
