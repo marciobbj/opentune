@@ -29,7 +29,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   bool _isLoading = true;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  TrackSortField _sortField = TrackSortField.dateAdded;
+  TrackSortField _sortField = TrackSortField.artist;
   bool _sortAscending = false;
 
   // Multi-select state
@@ -846,10 +846,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                             children: TrackSortField.values.map((field) {
                               final selected = _sortField == field;
                               final label = switch (field) {
+                                TrackSortField.dateAdded => 'Date Added',
                                 TrackSortField.title => 'Title',
                                 TrackSortField.artist => 'Artist',
                                 TrackSortField.album => 'Album',
-                                TrackSortField.dateAdded => 'Date Added',
                               };
                               return Padding(
                                 padding: const EdgeInsets.only(right: 6),
