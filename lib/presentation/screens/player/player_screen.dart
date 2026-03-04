@@ -3,6 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/bookmark_service.dart';
 import '../../../domain/entities/track.dart';
 import '../../../domain/entities/section.dart';
 import '../../../data/datasources/local_database.dart';
@@ -1481,13 +1482,28 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
     // Try to get from DB first
     final existing = await LocalDatabase.getTrackByPath(filePath);
-    if (existing != null) return existing;
+    if (existing != null) {
+      // If existing track has no bookmark, create one now
+      if (existing.bookmarkData == null) {
+        final bookmark = await BookmarkService.createBookmark(filePath);
+        if (bookmark != null) {
+          final updated = existing.copyWith(bookmarkData: bookmark);
+          await LocalDatabase.updateTrack(updated);
+          return updated;
+        }
+      }
+      return existing;
+    }
+
+    // Create security-scoped bookmark for persistent access (macOS)
+    final bookmarkData = await BookmarkService.createBookmark(filePath);
 
     // Create new track
     final track = Track(
       title: nameWithoutExt,
       artist: 'Unknown Artist',
       filePath: filePath,
+      bookmarkData: bookmarkData,
       duration: Duration.zero,
       createdAt: now,
       updatedAt: now,

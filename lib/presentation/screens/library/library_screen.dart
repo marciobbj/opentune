@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/bookmark_service.dart';
 import '../../../data/datasources/local_database.dart';
 import '../../../domain/entities/playlist.dart';
 import '../../../domain/entities/track.dart';
@@ -29,7 +30,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   bool _isLoading = true;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  TrackSortField _sortField = TrackSortField.dateAdded;
+  TrackSortField _sortField = TrackSortField.artist;
   bool _sortAscending = false;
 
   // Multi-select state
@@ -130,10 +131,35 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
     final validTracks = <Track>[];
     for (final track in rawTracks) {
-      if (!File(track.filePath).existsSync()) {
-        await LocalDatabase.deleteTrack(track.id!);
-      } else {
+      if (File(track.filePath).existsSync()) {
         validTracks.add(track);
+      } else if (track.bookmarkData != null) {
+        // Try to restore access via security-scoped bookmark (macOS)
+        final resolvedPath = await BookmarkService.startAccessing(
+          track.bookmarkData!,
+          onStaleBookmark: (newData) async {
+            // Update the stale bookmark in the database
+            await LocalDatabase.updateTrack(
+              track.copyWith(bookmarkData: newData),
+            );
+          },
+        );
+        if (resolvedPath != null && File(resolvedPath).existsSync()) {
+          // Update filePath if it changed after bookmark resolution
+          if (resolvedPath != track.filePath) {
+            final updatedTrack = track.copyWith(filePath: resolvedPath);
+            await LocalDatabase.updateTrack(updatedTrack);
+            validTracks.add(updatedTrack);
+          } else {
+            validTracks.add(track);
+          }
+        } else {
+          // Bookmark resolution failed — file is truly gone
+          await LocalDatabase.deleteTrack(track.id!);
+        }
+      } else {
+        // No bookmark and file not accessible — remove from library
+        await LocalDatabase.deleteTrack(track.id!);
       }
     }
 
@@ -655,6 +681,16 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             _SelectionActionButton(
+              icon: Icons.queue_music_rounded,
+              label: 'Add to Queue',
+              onTap: _bulkAddToQueue,
+            ),
+            Container(
+              width: 1,
+              height: 28,
+              color: context.colors.surfaceBorder.withValues(alpha: 0.3),
+            ),
+            _SelectionActionButton(
               icon: Icons.playlist_add_rounded,
               label: 'Playlist',
               onTap: _bulkAddToPlaylist,
@@ -836,10 +872,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                             children: TrackSortField.values.map((field) {
                               final selected = _sortField == field;
                               final label = switch (field) {
+                                TrackSortField.dateAdded => 'Date Added',
                                 TrackSortField.title => 'Title',
                                 TrackSortField.artist => 'Artist',
                                 TrackSortField.album => 'Album',
-                                TrackSortField.dateAdded => 'Date Added',
                               };
                               return Padding(
                                 padding: const EdgeInsets.only(right: 6),
@@ -1088,12 +1124,26 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   Future<bool> _importAudioFile(File f) async {
     final filePath = f.path;
     final existing = await LocalDatabase.getTrackByPath(filePath);
-    if (existing != null) return false;
+    if (existing != null) {
+      // If existing track has no bookmark, create one now
+      if (existing.bookmarkData == null) {
+        final bookmark = await BookmarkService.createBookmark(filePath);
+        if (bookmark != null) {
+          await LocalDatabase.updateTrack(
+            existing.copyWith(bookmarkData: bookmark),
+          );
+        }
+      }
+      return false;
+    }
 
     final fileName = filePath.split('/').last;
     final nameWithoutExt = fileName.contains('.')
         ? fileName.substring(0, fileName.lastIndexOf('.'))
         : fileName;
+
+    // Create security-scoped bookmark for persistent access (macOS)
+    final bookmarkData = await BookmarkService.createBookmark(filePath);
 
     // Read metadata from the audio file
     String metaTitle = nameWithoutExt;
@@ -1153,6 +1203,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       album: metaAlbum,
       filePath: filePath,
       albumArtPath: albumArtPath,
+      bookmarkData: bookmarkData,
       duration: metaDuration,
       createdAt: now,
       updatedAt: now,
@@ -1278,6 +1329,15 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   // ── Bulk Actions ──
+
+  void _bulkAddToQueue() {
+    final tracks = _selectedTracks;
+    if (tracks.isEmpty) return;
+    final notifier = ref.read(playerProvider.notifier);
+    notifier.loadQueue(tracks);
+    _exitSelectionMode();
+    ref.read(navigationProvider.notifier).state = 1;
+  }
 
   Future<void> _bulkDelete() async {
     final count = _selectedTrackIds.length;
