@@ -197,33 +197,44 @@ class WaveformExtractor {
     return _normalize(raw);
   }
 
-  /// Percentile-based normalization that works well for both quiet and
-  /// heavily compressed (loud) audio.
+  /// Adaptive normalization that adjusts contrast based on the audio's
+  /// dynamic range.
   ///
-  /// Instead of stretching between absolute min/max (where outliers
-  /// distort the result), we use the 5th and 95th percentiles as
-  /// reference points. This means:
-  ///   - The quietest ~5% of bins map to the floor
-  ///   - The loudest ~5% of bins map to the ceiling
-  ///   - Everything in between is evenly distributed
-  ///
-  /// The result: compressed rock tracks show real variation instead of
-  /// a flat wall, and quiet tracks don't get their transients exaggerated.
+  /// For dynamic audio (big difference between quiet and loud parts),
+  /// preserves the real proportions. For compressed/loud audio (everything
+  /// near the peak), applies a stronger power curve to reveal variation
+  /// that would otherwise look like a flat wall.
   static List<double> _normalize(List<double> raw) {
     final int n = raw.length;
     if (n == 0) return raw;
 
-    final sorted = List<double>.from(raw)..sort();
-    final double p5 = sorted[(n * 0.05).floor()];
-    final double p95 = sorted[(n * 0.95).floor().clamp(0, n - 1)];
-    final double range = p95 - p5;
-
-    if (range <= 0) {
-      return List.filled(n, 0.5);
+    double peak = 0.0;
+    for (int i = 0; i < n; i++) {
+      if (raw[i] > peak) peak = raw[i];
     }
 
+    if (peak <= 0) {
+      return List.filled(n, 0.05);
+    }
+
+    // Normalize to 0–1 by peak
     for (int i = 0; i < n; i++) {
-      raw[i] = ((raw[i] - p5) / range).clamp(0.05, 1.0);
+      raw[i] = raw[i] / peak;
+    }
+
+    // Measure how compressed the audio is using the 10th percentile.
+    // High p10 = compressed (everything loud), low p10 = dynamic.
+    final sorted = List<double>.from(raw)..sort();
+    final double p10 = sorted[(n * 0.10).floor()];
+
+    // Adaptive exponent:
+    //   p10 ≈ 0   (dynamic)    → exponent ≈ 0.9  (gentle lift for quiet parts)
+    //   p10 ≈ 0.5 (moderate)   → exponent ≈ 1.5
+    //   p10 ≈ 0.8 (compressed) → exponent ≈ 2.2  (spread out the top cluster)
+    final double exponent = 0.9 + p10 * 1.6;
+
+    for (int i = 0; i < n; i++) {
+      raw[i] = math.pow(raw[i], exponent).toDouble().clamp(0.05, 1.0);
     }
 
     return raw;
