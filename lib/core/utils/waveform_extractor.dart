@@ -138,11 +138,7 @@ class WaveformExtractor {
 
     if (maxAmplitude <= 0) return _generateEmpty(bins);
 
-    for (int i = 0; i < bins; i++) {
-      raw[i] = (raw[i] / maxAmplitude).clamp(0.05, 1.0);
-    }
-
-    return raw;
+    return _normalize(raw);
   }
 
   static List<double> _processChunks(Int16List pcmData, int bins) {
@@ -198,8 +194,36 @@ class WaveformExtractor {
 
     if (maxAmplitude <= 0) return _generateEmpty(bins);
 
-    for (int i = 0; i < bins; i++) {
-      raw[i] = (raw[i] / maxAmplitude).clamp(0.05, 1.0);
+    return _normalize(raw);
+  }
+
+  /// Percentile-based normalization that works well for both quiet and
+  /// heavily compressed (loud) audio.
+  ///
+  /// Instead of stretching between absolute min/max (where outliers
+  /// distort the result), we use the 5th and 95th percentiles as
+  /// reference points. This means:
+  ///   - The quietest ~5% of bins map to the floor
+  ///   - The loudest ~5% of bins map to the ceiling
+  ///   - Everything in between is evenly distributed
+  ///
+  /// The result: compressed rock tracks show real variation instead of
+  /// a flat wall, and quiet tracks don't get their transients exaggerated.
+  static List<double> _normalize(List<double> raw) {
+    final int n = raw.length;
+    if (n == 0) return raw;
+
+    final sorted = List<double>.from(raw)..sort();
+    final double p5 = sorted[(n * 0.05).floor()];
+    final double p95 = sorted[(n * 0.95).floor().clamp(0, n - 1)];
+    final double range = p95 - p5;
+
+    if (range <= 0) {
+      return List.filled(n, 0.5);
+    }
+
+    for (int i = 0; i < n; i++) {
+      raw[i] = ((raw[i] - p5) / range).clamp(0.05, 1.0);
     }
 
     return raw;
