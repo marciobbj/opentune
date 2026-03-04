@@ -8,7 +8,7 @@ import '../../domain/entities/playlist.dart';
 class LocalDatabase {
   static Database? _database;
   static const String _dbName = 'opentune.db';
-  static const int _dbVersion = 2;
+  static const int _dbVersion = 3;
 
   static Future<Database> get database async {
     _database ??= await _initDatabase();
@@ -38,6 +38,7 @@ class LocalDatabase {
         artist TEXT NOT NULL,
         album TEXT DEFAULT '',
         albumArtPath TEXT,
+        bookmarkData TEXT,
         filePath TEXT NOT NULL UNIQUE,
         durationMs INTEGER NOT NULL,
         originalBpm REAL DEFAULT 120.0,
@@ -102,6 +103,9 @@ class LocalDatabase {
   ) async {
     if (oldVersion < 2) {
       await db.execute('ALTER TABLE tracks ADD COLUMN albumArtPath TEXT');
+    }
+    if (oldVersion < 3) {
+      await db.execute('ALTER TABLE tracks ADD COLUMN bookmarkData TEXT');
     }
   }
 

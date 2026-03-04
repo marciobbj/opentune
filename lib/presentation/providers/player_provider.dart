@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,7 @@ import '../../domain/entities/section.dart';
 import '../../domain/entities/playlist.dart';
 import '../../data/datasources/local_database.dart';
 import '../../core/utils/waveform_extractor.dart';
+import '../../core/utils/bookmark_service.dart';
 
 // ── Audio Player Instance ──
 final audioPlayerProvider = Provider<AudioPlayer>((ref) {
@@ -174,15 +176,37 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     );
 
     try {
+      // Ensure file access via bookmark if needed (macOS sandbox)
+      var activeTrack = track;
+      if (!File(track.filePath).existsSync() && track.bookmarkData != null) {
+        final resolvedPath = await BookmarkService.startAccessing(
+          track.bookmarkData!,
+          onStaleBookmark: (newData) async {
+            final updated = track.copyWith(bookmarkData: newData);
+            await LocalDatabase.updateTrack(updated);
+            activeTrack = updated;
+          },
+        );
+        if (resolvedPath != null && resolvedPath != track.filePath) {
+          activeTrack = activeTrack.copyWith(filePath: resolvedPath);
+          await LocalDatabase.updateTrack(activeTrack);
+        }
+      } else if (track.bookmarkData != null) {
+        // File exists but still start accessing via bookmark for sandbox compliance
+        await BookmarkService.startAccessing(track.bookmarkData!);
+      }
+
       // Load saved settings
-      final savedSettings = await LocalDatabase.getTrackSettings(track.id!);
-      final settings = savedSettings ?? TrackSettings(trackId: track.id!);
+      final savedSettings = await LocalDatabase.getTrackSettings(
+        activeTrack.id!,
+      );
+      final settings = savedSettings ?? TrackSettings(trackId: activeTrack.id!);
 
       // Load sections
-      final sections = await LocalDatabase.getSectionsForTrack(track.id!);
+      final sections = await LocalDatabase.getSectionsForTrack(activeTrack.id!);
 
       // Set the audio source
-      await _player.setFilePath(track.filePath);
+      await _player.setFilePath(activeTrack.filePath);
 
       // Apply saved settings
       await _player.setSpeed(settings.tempo);
@@ -193,10 +217,10 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       }
 
       // Extract waveform
-      final waveform = await WaveformExtractor.extract(track.filePath);
+      final waveform = await WaveformExtractor.extract(activeTrack.filePath);
 
       state = state.copyWith(
-        currentTrack: track,
+        currentTrack: activeTrack,
         settings: settings,
         sections: sections,
         waveformData: waveform,

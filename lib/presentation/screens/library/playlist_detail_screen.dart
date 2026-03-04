@@ -3,6 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/bookmark_service.dart';
 import '../../../data/datasources/local_database.dart';
 import '../../../domain/entities/playlist.dart';
 import '../../../domain/entities/track.dart';
@@ -529,7 +530,8 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                       runSpacing: 4,
                       children: fields.keys.map((field) {
                         final checked = fields[field]!;
-                        final label = field[0].toUpperCase() + field.substring(1);
+                        final label =
+                            field[0].toUpperCase() + field.substring(1);
                         return FilterChip(
                           selected: checked,
                           label: Text(
@@ -539,7 +541,9 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                                   ? context.colors.bgDarkest
                                   : context.colors.textSecondary,
                               fontSize: 12,
-                              fontWeight: checked ? FontWeight.w600 : FontWeight.w400,
+                              fontWeight: checked
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
                             ),
                           ),
                           selectedColor: Theme.of(context).colorScheme.primary,
@@ -548,7 +552,9 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                           side: BorderSide(
                             color: checked
                                 ? Theme.of(context).colorScheme.primary
-                                : context.colors.surfaceBorder.withValues(alpha: 0.3),
+                                : context.colors.surfaceBorder.withValues(
+                                    alpha: 0.3,
+                                  ),
                           ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -571,11 +577,16 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                     const SizedBox(height: 8),
                     TextField(
                       controller: searchController,
-                      style: TextStyle(color: context.colors.textPrimary, fontSize: 14),
+                      style: TextStyle(
+                        color: context.colors.textPrimary,
+                        fontSize: 14,
+                      ),
                       decoration: InputDecoration(
                         hintText: 'Search tracks...',
                         hintStyle: TextStyle(
-                          color: context.colors.textMuted.withValues(alpha: 0.5),
+                          color: context.colors.textMuted.withValues(
+                            alpha: 0.5,
+                          ),
                         ),
                         prefixIcon: Icon(
                           Icons.search_rounded,
@@ -599,7 +610,10 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                             : null,
                         filled: true,
                         fillColor: context.colors.bgDark,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
                           borderSide: BorderSide.none,
@@ -609,9 +623,11 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                         setDialogState(() {
                           final q = query.toLowerCase();
                           filtered = otherTracks
-                              .where((t) =>
-                                  t.title.toLowerCase().contains(q) ||
-                                  t.artist.toLowerCase().contains(q))
+                              .where(
+                                (t) =>
+                                    t.title.toLowerCase().contains(q) ||
+                                    t.artist.toLowerCase().contains(q),
+                              )
                               .toList();
                         });
                       },
@@ -633,7 +649,9 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                               itemCount: filtered.length,
                               itemBuilder: (context, index) {
                                 final track = filtered[index];
-                                final hasSelection = fields.values.any((v) => v);
+                                final hasSelection = fields.values.any(
+                                  (v) => v,
+                                );
                                 return ListTile(
                                   dense: true,
                                   enabled: hasSelection,
@@ -662,7 +680,8 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                                   leading: Icon(
                                     Icons.music_note_rounded,
                                     color: hasSelection
-                                        ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.6)
+                                        ? Theme.of(context).colorScheme.primary
+                                              .withValues(alpha: 0.6)
                                         : context.colors.textDisabled,
                                     size: 20,
                                   ),
@@ -671,9 +690,11 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                                   ),
                                   onTap: hasSelection
                                       ? () => Navigator.pop(ctx, {
-                                            'track': track,
-                                            'fields': Map<String, bool>.from(fields),
-                                          })
+                                          'track': track,
+                                          'fields': Map<String, bool>.from(
+                                            fields,
+                                          ),
+                                        })
                                       : null,
                                 );
                               },
@@ -780,11 +801,16 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                   children: [
                     TextField(
                       controller: searchController,
-                      style: TextStyle(color: context.colors.textPrimary, fontSize: 14),
+                      style: TextStyle(
+                        color: context.colors.textPrimary,
+                        fontSize: 14,
+                      ),
                       decoration: InputDecoration(
                         hintText: 'Search tracks...',
                         hintStyle: TextStyle(
-                          color: context.colors.textMuted.withValues(alpha: 0.5),
+                          color: context.colors.textMuted.withValues(
+                            alpha: 0.5,
+                          ),
                         ),
                         prefixIcon: Icon(
                           Icons.search_rounded,
@@ -808,7 +834,10 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                             : null,
                         filled: true,
                         fillColor: context.colors.bgDark,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
                           borderSide: BorderSide.none,
@@ -818,9 +847,11 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                         setDialogState(() {
                           final q = query.toLowerCase();
                           filtered = available
-                              .where((t) =>
-                                  t.title.toLowerCase().contains(q) ||
-                                  t.artist.toLowerCase().contains(q))
+                              .where(
+                                (t) =>
+                                    t.title.toLowerCase().contains(q) ||
+                                    t.artist.toLowerCase().contains(q),
+                              )
                               .toList();
                         });
                       },
@@ -867,9 +898,12 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                                       fontSize: 12,
                                     ),
                                   ),
-                                  activeColor: Theme.of(context).colorScheme.primary,
+                                  activeColor: Theme.of(
+                                    context,
+                                  ).colorScheme.primary,
                                   checkColor: context.colors.bgDarkest,
-                                  controlAffinity: ListTileControlAffinity.leading,
+                                  controlAffinity:
+                                      ListTileControlAffinity.leading,
                                 );
                               },
                             ),
@@ -944,17 +978,28 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
               ? fileName.substring(0, fileName.lastIndexOf('.'))
               : fileName;
 
+          // Create security-scoped bookmark for persistent access (macOS)
+          final bookmarkData = await BookmarkService.createBookmark(file.path!);
+
           final now = DateTime.now();
           final track = Track(
             title: nameWithoutExt,
             artist: 'Unknown Artist',
             filePath: file.path!,
+            bookmarkData: bookmarkData,
             duration: Duration.zero,
             createdAt: now,
             updatedAt: now,
           );
           final id = await LocalDatabase.insertTrack(track);
           existing = track.copyWith(id: id);
+        } else if (existing.bookmarkData == null) {
+          // Existing track without bookmark — create one now
+          final bookmark = await BookmarkService.createBookmark(file.path!);
+          if (bookmark != null) {
+            existing = existing.copyWith(bookmarkData: bookmark);
+            await LocalDatabase.updateTrack(existing);
+          }
         }
 
         await LocalDatabase.addTrackToPlaylist(_playlist.id!, existing.id!);
