@@ -655,6 +655,16 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             _SelectionActionButton(
+              icon: Icons.queue_music_rounded,
+              label: 'Add to Queue',
+              onTap: _bulkAddToQueue,
+            ),
+            Container(
+              width: 1,
+              height: 28,
+              color: context.colors.surfaceBorder.withValues(alpha: 0.3),
+            ),
+            _SelectionActionButton(
               icon: Icons.playlist_add_rounded,
               label: 'Playlist',
               onTap: _bulkAddToPlaylist,
@@ -1278,6 +1288,15 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   // ── Bulk Actions ──
+
+  void _bulkAddToQueue() {
+    final tracks = _selectedTracks;
+    if (tracks.isEmpty) return;
+    final notifier = ref.read(playerProvider.notifier);
+    notifier.loadQueue(tracks);
+    _exitSelectionMode();
+    ref.read(navigationProvider.notifier).state = 1;
+  }
 
   Future<void> _bulkDelete() async {
     final count = _selectedTrackIds.length;
