@@ -8,6 +8,12 @@ class MainFlutterWindow: NSWindow {
     self.contentViewController = flutterViewController
     self.setFrame(windowFrame, display: true)
 
+    // Transparent titlebar with traffic lights visible, content extends behind it
+    self.titlebarAppearsTransparent = true
+    self.titleVisibility = .hidden
+    self.styleMask.insert(.fullSizeContentView)
+    self.isMovableByWindowBackground = true
+
     RegisterGeneratedPlugins(registry: flutterViewController)
 
     super.awakeFromNib()
