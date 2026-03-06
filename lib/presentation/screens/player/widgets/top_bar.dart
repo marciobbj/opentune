@@ -86,6 +86,9 @@ class TopBar extends StatelessWidget {
                             width: 36,
                             height: 36,
                             fit: BoxFit.cover,
+                            cacheWidth: 72,
+                            cacheHeight: 72,
+                            filterQuality: FilterQuality.low,
                             errorBuilder: (_, __, ___) =>
                                 const SizedBox.shrink(),
                           ),

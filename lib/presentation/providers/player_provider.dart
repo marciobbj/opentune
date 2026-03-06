@@ -92,10 +92,22 @@ class PlayerState {
 class PlayerNotifier extends StateNotifier<PlayerState> {
   final AudioPlayer _player;
   final List<StreamSubscription> _subscriptions = [];
+  int _loadGeneration = 0;
+  String? _activeBookmarkPath;
 
   PlayerNotifier(this._player) : super(const PlayerState()) {
     _player.setVolume(0.3);
     _listenToPlayer();
+  }
+
+  bool _isStaleLoad(int loadId) => loadId != _loadGeneration;
+
+  Future<void> _releaseActiveBookmark() async {
+    final path = _activeBookmarkPath;
+    _activeBookmarkPath = null;
+    if (path != null) {
+      await BookmarkService.stopAccessing(path);
+    }
   }
 
   void _listenToPlayer() {
@@ -169,6 +181,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   Future<void> loadTrack(Track track) async {
+    final loadId = ++_loadGeneration;
     state = state.copyWith(
       isLoading: true,
       currentTrack: track,
@@ -176,8 +189,11 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     );
 
     try {
+      await _releaseActiveBookmark();
+
       // Ensure file access via bookmark if needed (macOS sandbox)
       var activeTrack = track;
+      String? activeBookmarkPath;
       if (!File(track.filePath).existsSync() && track.bookmarkData != null) {
         final resolvedPath = await BookmarkService.startAccessing(
           track.bookmarkData!,
@@ -191,9 +207,19 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
           activeTrack = activeTrack.copyWith(filePath: resolvedPath);
           await LocalDatabase.updateTrack(activeTrack);
         }
+        activeBookmarkPath = resolvedPath;
       } else if (track.bookmarkData != null) {
         // File exists but still start accessing via bookmark for sandbox compliance
-        await BookmarkService.startAccessing(track.bookmarkData!);
+        activeBookmarkPath = await BookmarkService.startAccessing(
+          track.bookmarkData!,
+        );
+      }
+
+      if (_isStaleLoad(loadId)) {
+        if (activeBookmarkPath != null) {
+          await BookmarkService.stopAccessing(activeBookmarkPath);
+        }
+        return;
       }
 
       // Load saved settings
@@ -205,8 +231,21 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       // Load sections
       final sections = await LocalDatabase.getSectionsForTrack(activeTrack.id!);
 
+      if (_isStaleLoad(loadId)) {
+        if (activeBookmarkPath != null) {
+          await BookmarkService.stopAccessing(activeBookmarkPath);
+        }
+        return;
+      }
+
       // Set the audio source
       await _player.setFilePath(activeTrack.filePath);
+      if (_isStaleLoad(loadId)) {
+        if (activeBookmarkPath != null) {
+          await BookmarkService.stopAccessing(activeBookmarkPath);
+        }
+        return;
+      }
 
       // Apply saved settings
       await _player.setSpeed(settings.tempo);
@@ -218,6 +257,14 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
       // Extract waveform
       final waveform = await WaveformExtractor.extract(activeTrack.filePath);
+      if (_isStaleLoad(loadId)) {
+        if (activeBookmarkPath != null) {
+          await BookmarkService.stopAccessing(activeBookmarkPath);
+        }
+        return;
+      }
+
+      _activeBookmarkPath = activeBookmarkPath;
 
       state = state.copyWith(
         currentTrack: activeTrack,
@@ -228,7 +275,9 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         duration: _player.duration ?? Duration.zero,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false);
+      if (!_isStaleLoad(loadId)) {
+        state = state.copyWith(isLoading: false);
+      }
       rethrow;
     }
   }
@@ -566,6 +615,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
   @override
   void dispose() {
+    _loadGeneration++;
+    unawaited(_releaseActiveBookmark());
     _saveCurrentState();
     for (final sub in _subscriptions) {
       sub.cancel();

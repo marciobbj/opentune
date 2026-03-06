@@ -134,11 +134,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       if (File(track.filePath).existsSync()) {
         validTracks.add(track);
       } else if (track.bookmarkData != null) {
-        // Try to restore access via security-scoped bookmark (macOS)
-        final resolvedPath = await BookmarkService.startAccessing(
+        final resolvedPath = await BookmarkService.resolveBookmark(
           track.bookmarkData!,
           onStaleBookmark: (newData) async {
-            // Update the stale bookmark in the database
             await LocalDatabase.updateTrack(
               track.copyWith(bookmarkData: newData),
             );
@@ -1119,6 +1117,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     'aiff',
   };
 
+  static const int _albumArtTargetSize = 256;
+
   /// Imports a single audio file: reads metadata, creates Track, inserts into DB.
   /// Returns true if the track was actually imported (not a duplicate).
   Future<bool> _importAudioFile(File f) async {
@@ -1185,7 +1185,21 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             // Use a hash of the file path for uniqueness
             final hash = filePath.hashCode.toUnsigned(32).toRadixString(16);
             final artFile = File('${artDir.path}/$hash.$ext');
-            await artFile.writeAsBytes(picture.bytes);
+            final codec = await instantiateImageCodec(
+              picture.bytes,
+              targetWidth: _albumArtTargetSize,
+              targetHeight: _albumArtTargetSize,
+            );
+            final frame = await codec.getNextFrame();
+            final byteData = await frame.image.toByteData(
+              format: ImageByteFormat.png,
+            );
+            codec.dispose();
+            if (byteData != null) {
+              await artFile.writeAsBytes(byteData.buffer.asUint8List());
+            } else {
+              await artFile.writeAsBytes(picture.bytes);
+            }
             albumArtPath = artFile.path;
           } catch (_) {
             // Failed to save album art — continue without it
@@ -2199,6 +2213,9 @@ class _TrackTile extends StatelessWidget {
                           width: 42,
                           height: 42,
                           fit: BoxFit.cover,
+                          cacheWidth: 84,
+                          cacheHeight: 84,
+                          filterQuality: FilterQuality.low,
                           errorBuilder: (_, __, ___) => Icon(
                             Icons.music_note_rounded,
                             color: primary,
