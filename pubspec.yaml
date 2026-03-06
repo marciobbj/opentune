@@ -35,6 +35,9 @@ dependencies:
   flutter_colorpicker: ^1.1.0
   shared_preferences: ^2.3.2
 
+  # Window management (desktop)
+  window_manager: ^0.4.3
+
   # Archive extraction (Windows FFmpeg ZIP)
   archive: ^4.0.0
 

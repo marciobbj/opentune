@@ -6,6 +6,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:window_manager/window_manager.dart';
 import 'app.dart';
 
 void main() async {
@@ -33,16 +34,26 @@ void main() async {
 
   // Initialize MediaKit for desktop audio playback
   // macOS needs explicit opt-in for MediaKit (enables pitch shifting via mpv)
-  JustAudioMediaKit.ensureInitialized(
-    macOS: Platform.isMacOS,
-  );
+  JustAudioMediaKit.ensureInitialized(macOS: Platform.isMacOS);
   // Set buffer size and ignore minor lavf cache errors in logs
   JustAudioMediaKit.bufferSize = 1 * 1024 * 1024;
   JustAudioMediaKit.mpvLogLevel = MPVLogLevel.warn;
 
-  runApp(
-    const ProviderScope(
-      child: OpenTuneApp(),
-    ),
-  );
+  // Initialize window manager for desktop (custom titlebar)
+  if (!kIsWeb && (Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
+    await windowManager.ensureInitialized();
+    final windowOptions = WindowOptions(
+      size: Size(1280, 720),
+      minimumSize: Size(800, 500),
+      center: true,
+      titleBarStyle: TitleBarStyle.hidden,
+      title: 'OpenTune',
+    );
+    await windowManager.waitUntilReadyToShow(windowOptions, () async {
+      await windowManager.show();
+      await windowManager.focus();
+    });
+  }
+
+  runApp(const ProviderScope(child: OpenTuneApp()));
 }

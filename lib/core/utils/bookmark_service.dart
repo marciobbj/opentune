@@ -30,6 +30,35 @@ class BookmarkService {
     }
   }
 
+  /// Resolves a bookmark without starting access to the resource.
+  /// Useful for checking whether the path has moved without retaining
+  /// a security-scoped access token.
+  static Future<String?> resolveBookmark(
+    String bookmarkData, {
+    Future<void> Function(String newBookmarkData)? onStaleBookmark,
+  }) async {
+    if (!_isMacOS) return null;
+    try {
+      final result = await _channel.invokeMethod<Map>('resolveBookmark', {
+        'bookmarkData': bookmarkData,
+      });
+      if (result == null) return null;
+
+      final path = result['path'] as String?;
+      final isStale = result['isStale'] as bool? ?? false;
+      final newBookmarkData = result['newBookmarkData'] as String?;
+
+      if (isStale && newBookmarkData != null && onStaleBookmark != null) {
+        await onStaleBookmark(newBookmarkData);
+      }
+
+      return path;
+    } on PlatformException catch (e) {
+      print('BookmarkService: Failed to resolve bookmark: ${e.message}');
+      return null;
+    }
+  }
+
   /// Resolves a bookmark and starts accessing the security-scoped resource.
   /// Returns the resolved file path, or null on failure.
   /// If the bookmark is stale, [onStaleBookmark] is called with the new bookmark data.

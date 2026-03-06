@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:math' as math;
@@ -10,19 +11,37 @@ import 'package:just_waveform/just_waveform.dart';
 import 'ffmpeg_manager.dart';
 
 class WaveformExtractor {
+  static const int _ffmpegSampleRate = 2000;
+  static const int _cacheVersion = 2;
+
   static Future<List<double>> extract(String filePath, {int bins = 300}) async {
     try {
-      if (!File(filePath).existsSync()) {
+      final file = File(filePath);
+      if (!file.existsSync()) {
         return _generateEmpty(bins);
       }
+
+      final stat = await file.stat();
+      final cached = await _readCache(filePath, bins, stat);
+      if (cached != null) {
+        return cached;
+      }
+
+      late final List<double> waveform;
 
       // Use native decoders for mobile platforms via just_waveform,
       // or macOS if supported. For desktop (Linux/Windows), fallback to FFMPEG.
       if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS) {
-        return await _extractViaNative(filePath, bins);
+        waveform = await _extractViaNative(filePath, bins);
       } else {
-        return await _extractViaFFmpeg(filePath, bins);
+        waveform = await _extractViaFFmpeg(filePath, bins);
       }
+
+      if (_isCacheable(waveform)) {
+        await _writeCache(filePath, bins, stat, waveform);
+      }
+
+      return waveform;
     } catch (e) {
       return _generateEmpty(bins);
     }
@@ -78,37 +97,52 @@ class WaveformExtractor {
     await manager.initialize();
     final ffmpeg = manager.ffmpegPath ?? 'ffmpeg';
 
-    final result = await Process.run(ffmpeg, [
-      '-v',
-      'error',
-      '-i',
-      filePath,
-      '-ac',
-      '1',
-      '-filter:a',
-      'aresample=8000',
-      '-map',
-      '0:a',
-      '-c:a',
-      'pcm_s16le',
-      '-f',
-      's16le',
-      '-',
-    ], stdoutEncoding: null);
+    final tempDir = await getTemporaryDirectory();
+    final pcmFile = File(
+      path.join(
+        tempDir.path,
+        'temp_waveform_pcm_${DateTime.now().millisecondsSinceEpoch}.raw',
+      ),
+    );
 
-    if (result.exitCode != 0) {
-      return _generateEmpty(bins);
+    try {
+      final result = await Process.run(ffmpeg, [
+        '-v',
+        'error',
+        '-y',
+        '-i',
+        filePath,
+        '-ac',
+        '1',
+        '-ar',
+        '$_ffmpegSampleRate',
+        '-map',
+        '0:a',
+        '-c:a',
+        'pcm_s16le',
+        '-f',
+        's16le',
+        pcmFile.path,
+      ], stdoutEncoding: null);
+
+      if (result.exitCode != 0 || !await pcmFile.exists()) {
+        return _generateEmpty(bins);
+      }
+
+      final byteLength = await pcmFile.length();
+      final totalSamples = byteLength ~/ Int16List.bytesPerElement;
+      if (totalSamples <= 0) {
+        return _generateEmpty(bins);
+      }
+
+      return await _processPcmFile(pcmFile.path, bins, totalSamples);
+    } finally {
+      if (await pcmFile.exists()) {
+        try {
+          await pcmFile.delete();
+        } catch (_) {}
+      }
     }
-
-    final bytes = result.stdout as List<int>;
-    if (bytes.isEmpty) {
-      return _generateEmpty(bins);
-    }
-
-    return await Isolate.run(() {
-      final int16List = Int16List.view(Uint8List.fromList(bytes).buffer);
-      return _processChunks(int16List, bins);
-    });
   }
 
   static List<double> _processJustWaveform(Waveform waveform, int bins) {
@@ -134,62 +168,6 @@ class WaveformExtractor {
       final double avg = sum / (end - start);
       raw[i] = avg;
       if (avg > maxAmplitude) maxAmplitude = avg;
-    }
-
-    if (maxAmplitude <= 0) return _generateEmpty(bins);
-
-    return _normalize(raw);
-  }
-
-  static List<double> _processChunks(Int16List pcmData, int bins) {
-    if (pcmData.isEmpty) return _generateEmpty(bins);
-
-    final int samplesPerBin = pcmData.length ~/ bins;
-    if (samplesPerBin == 0) return _generateEmpty(bins);
-
-    // Hybrid approach: compute the full-bin RMS (overall energy) and
-    // the peak sub-window RMS (transient detail), then blend them.
-    // 70% full RMS + 30% peak sub-RMS keeps transients visible
-    // without letting them tower over everything else.
-    const int subWindows = 4;
-    final List<double> raw = List.filled(bins, 0.0);
-    double maxAmplitude = 0.0;
-
-    for (int i = 0; i < bins; i++) {
-      int binStart = i * samplesPerBin;
-      int binEnd = (i == bins - 1) ? pcmData.length : (i + 1) * samplesPerBin;
-      int binLen = binEnd - binStart;
-      int subLen = binLen ~/ subWindows;
-      if (subLen == 0) subLen = binLen;
-
-      // Full-bin RMS
-      double fullSumSq = 0.0;
-      for (int j = binStart; j < binEnd; j++) {
-        final double sample = pcmData[j] / 32768.0;
-        fullSumSq += sample * sample;
-      }
-      final double fullRms = math.sqrt(fullSumSq / binLen);
-
-      // Peak sub-window RMS
-      double peakRms = 0.0;
-      for (int s = 0; s < subWindows; s++) {
-        int subStart = binStart + s * subLen;
-        int subEnd = (s == subWindows - 1) ? binEnd : subStart + subLen;
-        if (subStart >= binEnd) break;
-
-        double sumSq = 0.0;
-        for (int j = subStart; j < subEnd; j++) {
-          final double sample = pcmData[j] / 32768.0;
-          sumSq += sample * sample;
-        }
-        final rms = math.sqrt(sumSq / (subEnd - subStart));
-        if (rms > peakRms) peakRms = rms;
-      }
-
-      // Blend: mostly the overall energy, with a boost from transients
-      final value = fullRms * 0.7 + peakRms * 0.3;
-      raw[i] = value;
-      if (value > maxAmplitude) maxAmplitude = value;
     }
 
     if (maxAmplitude <= 0) return _generateEmpty(bins);
@@ -242,5 +220,158 @@ class WaveformExtractor {
 
   static List<double> _generateEmpty(int bins) {
     return List.filled(bins, 0.05);
+  }
+
+  static Future<List<double>> _processPcmFile(
+    String pcmFilePath,
+    int bins,
+    int totalSamples,
+  ) async {
+    return Isolate.run(() async {
+      if (totalSamples <= 0) return _generateEmpty(bins);
+
+      final pcmFile = File(pcmFilePath);
+
+      final int samplesPerBin = totalSamples ~/ bins;
+      if (samplesPerBin == 0) return _generateEmpty(bins);
+
+      const int subWindows = 4;
+      final fullSumSq = List<double>.filled(bins, 0.0);
+      final fullCounts = List<int>.filled(bins, 0);
+      final subSumSq = List<double>.filled(bins * subWindows, 0.0);
+      final subCounts = List<int>.filled(bins * subWindows, 0);
+
+      var sampleIndex = 0;
+      int? carryByte;
+
+      void addSample(int rawSample) {
+        var bin = sampleIndex ~/ samplesPerBin;
+        if (bin >= bins) bin = bins - 1;
+
+        final sample = rawSample / 32768.0;
+        final squared = sample * sample;
+        fullSumSq[bin] += squared;
+        fullCounts[bin] += 1;
+
+        final relativeIndex = sampleIndex - (bin * samplesPerBin);
+        final subIndex = ((relativeIndex * subWindows) ~/ samplesPerBin).clamp(
+          0,
+          subWindows - 1,
+        );
+        final offset = bin * subWindows + subIndex;
+        subSumSq[offset] += squared;
+        subCounts[offset] += 1;
+
+        sampleIndex += 1;
+      }
+
+      await for (final chunk in pcmFile.openRead()) {
+        final bytes = Uint8List.fromList(chunk);
+        var offset = 0;
+
+        if (carryByte != null && bytes.isNotEmpty) {
+          final value = carryByte | (bytes[0] << 8);
+          addSample(value >= 0x8000 ? value - 0x10000 : value);
+          carryByte = null;
+          offset = 1;
+        }
+
+        for (int i = offset; i + 1 < bytes.length; i += 2) {
+          final value = bytes[i] | (bytes[i + 1] << 8);
+          addSample(value >= 0x8000 ? value - 0x10000 : value);
+        }
+
+        if ((bytes.length - offset).isOdd) {
+          carryByte = bytes.last;
+        }
+      }
+
+      final raw = List<double>.filled(bins, 0.0);
+      double maxAmplitude = 0.0;
+
+      for (int bin = 0; bin < bins; bin++) {
+        if (fullCounts[bin] == 0) continue;
+
+        final fullRms = math.sqrt(fullSumSq[bin] / fullCounts[bin]);
+        double peakRms = 0.0;
+        for (int sub = 0; sub < subWindows; sub++) {
+          final offset = bin * subWindows + sub;
+          if (subCounts[offset] == 0) continue;
+          final rms = math.sqrt(subSumSq[offset] / subCounts[offset]);
+          if (rms > peakRms) peakRms = rms;
+        }
+
+        final value = fullRms * 0.75 + peakRms * 0.25;
+        raw[bin] = value;
+        if (value > maxAmplitude) maxAmplitude = value;
+      }
+
+      if (maxAmplitude <= 0) return _generateEmpty(bins);
+
+      return _normalize(raw);
+    });
+  }
+
+  static bool _isCacheable(List<double> waveform) {
+    return waveform.isNotEmpty && waveform.any((value) => value > 0.05);
+  }
+
+  static Future<List<double>?> _readCache(
+    String filePath,
+    int bins,
+    FileStat stat,
+  ) async {
+    try {
+      final cacheFile = await _cacheFile(filePath, bins, stat);
+      if (!await cacheFile.exists()) return null;
+
+      final bytes = await cacheFile.readAsBytes();
+      if (bytes.isEmpty || bytes.length % Float32List.bytesPerElement != 0) {
+        return null;
+      }
+
+      final floats = Float32List.view(bytes.buffer, 0, bytes.length ~/ 4);
+      if (floats.isEmpty) return null;
+      return floats.toList(growable: false);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> _writeCache(
+    String filePath,
+    int bins,
+    FileStat stat,
+    List<double> waveform,
+  ) async {
+    try {
+      final cacheFile = await _cacheFile(filePath, bins, stat);
+      await cacheFile.parent.create(recursive: true);
+      final data = Float32List.fromList(waveform);
+      await cacheFile.writeAsBytes(data.buffer.asUint8List(), flush: false);
+    } catch (_) {}
+  }
+
+  static Future<File> _cacheFile(
+    String filePath,
+    int bins,
+    FileStat stat,
+  ) async {
+    final tempDir = await getTemporaryDirectory();
+    final cacheDir = Directory(path.join(tempDir.path, 'waveform_cache'));
+    final key = _cacheKey(filePath, bins, stat);
+    return File(path.join(cacheDir.path, '$key.bin'));
+  }
+
+  static String _cacheKey(String filePath, int bins, FileStat stat) {
+    final payload = [
+      filePath,
+      stat.size,
+      stat.modified.millisecondsSinceEpoch,
+      bins,
+      _cacheVersion,
+      _ffmpegSampleRate,
+    ].join('|');
+    return base64Url.encode(utf8.encode(payload)).replaceAll('=', '');
   }
 }
