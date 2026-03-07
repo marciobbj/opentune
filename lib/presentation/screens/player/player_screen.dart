@@ -9,6 +9,7 @@ import '../../../domain/entities/section.dart';
 import '../../../data/datasources/local_database.dart';
 import '../../providers/player_provider.dart';
 import '../../providers/navigation_provider.dart';
+import '../../providers/settings_provider.dart';
 import 'widgets/waveform_view.dart';
 import 'widgets/transport_controls.dart';
 import 'widgets/top_bar.dart';
@@ -71,6 +72,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   Widget build(BuildContext context) {
     final state = ref.watch(playerProvider);
     final notifier = ref.read(playerProvider.notifier);
+    final showAlbumArt = ref.watch(
+      settingsProvider.select((s) => s.showAlbumArtInPlayer),
+    );
 
     return Scaffold(
       backgroundColor: context.colors.bgDarkest,
@@ -136,6 +140,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                               loopStart: state.settings.loopStart,
                               loopEnd: state.settings.loopEnd,
                               loopEnabled: state.settings.loopEnabled,
+                              albumArtPath: showAlbumArt
+                                  ? state.currentTrack?.albumArtPath
+                                  : null,
                               onSeek: (progress) =>
                                   notifier.seekToProgress(progress),
                               onSectionUpdated: (section) =>

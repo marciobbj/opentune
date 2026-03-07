@@ -20,6 +20,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final themeMode = ref.watch(settingsProvider.select((s) => s.themeMode));
     final currentColor = customColor ?? context.colors.primary;
 
+    final showAlbumArt = ref.watch(
+      settingsProvider.select((s) => s.showAlbumArtInPlayer),
+    );
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -167,6 +171,49 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     },
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 32),
+            Text(
+              'Player',
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 16),
+            Card(
+              color: Theme.of(context).cardTheme.color,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  width: 0.5,
+                ),
+              ),
+              child: SwitchListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
+                secondary: Icon(
+                  Icons.album_rounded,
+                  color: Theme.of(context).iconTheme.color,
+                ),
+                title: const Text(
+                  'Album Art in Player',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  'Show the album cover behind the waveform',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                value: showAlbumArt,
+                activeThumbColor: Theme.of(context).colorScheme.primary,
+                onChanged: (value) {
+                  ref
+                      .read(settingsProvider.notifier)
+                      .setShowAlbumArtInPlayer(value);
+                },
               ),
             ),
           ],
