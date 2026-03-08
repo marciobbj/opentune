@@ -497,6 +497,7 @@ class _WaveformViewState extends State<WaveformView>
     with SingleTickerProviderStateMixin {
   late AnimationController _glowController;
   _SectionDragState? _dragState;
+  bool _albumArtExists = false;
 
   static const double _handleHitRadius = 18.0;
   static const int _minSectionMs = 1000; // 1 second minimum
@@ -508,6 +509,20 @@ class _WaveformViewState extends State<WaveformView>
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
+    _updateAlbumArtExists();
+  }
+
+  @override
+  void didUpdateWidget(covariant WaveformView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.albumArtPath != widget.albumArtPath) {
+      _updateAlbumArtExists();
+    }
+  }
+
+  void _updateAlbumArtExists() {
+    _albumArtExists =
+        widget.albumArtPath != null && File(widget.albumArtPath!).existsSync();
   }
 
   @override
@@ -678,20 +693,26 @@ class _WaveformViewState extends State<WaveformView>
                 fit: StackFit.expand,
                 children: [
                   // Album art background (blurred & faded)
-                  if (widget.albumArtPath != null &&
-                      File(widget.albumArtPath!).existsSync())
-                    Opacity(
-                      opacity: 0.20,
-                      child: ImageFiltered(
-                        imageFilter: ui.ImageFilter.blur(
-                          sigmaX: 10,
-                          sigmaY: 10,
-                          tileMode: TileMode.decal,
-                        ),
-                        child: Image.file(
-                          File(widget.albumArtPath!),
-                          fit: BoxFit.cover,
-                          alignment: Alignment.center,
+                  if (_albumArtExists)
+                    RepaintBoundary(
+                      child: Opacity(
+                        opacity: 0.20,
+                        child: ImageFiltered(
+                          imageFilter: ui.ImageFilter.blur(
+                            sigmaX: 10,
+                            sigmaY: 10,
+                            tileMode: TileMode.decal,
+                          ),
+                          child: Image.file(
+                            File(widget.albumArtPath!),
+                            fit: BoxFit.cover,
+                            alignment: Alignment.center,
+                            cacheWidth: 400,
+                            filterQuality: FilterQuality.low,
+                            gaplessPlayback: true,
+                            errorBuilder: (_, __, ___) =>
+                                const SizedBox.shrink(),
+                          ),
                         ),
                       ),
                     ),
