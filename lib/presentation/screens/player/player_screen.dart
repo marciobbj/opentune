@@ -394,12 +394,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                         loopEnabled: state.settings.loopEnabled,
                         hasLoop: state.settings.hasLoop,
                         sectionCount: state.sections.length,
+                        isShuffled: state.isShuffled,
                         onTempoTap: _toggleTempoPanel,
                         onPitchTap: _togglePitchPanel,
                         onSectionsTap: () =>
                             _showSectionsSheet(context, state, notifier),
                         onLoopToggle: () =>
                             _showLoopSelector(context, state, notifier),
+                        onShuffleTap: () => notifier.toggleShuffle(),
                       ),
                     ],
                   ),
@@ -420,7 +422,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                         ? QueuePanel(
                             queue: state.queue,
                             currentIndex: state.queueIndex,
+                            isShuffled: state.isShuffled,
                             onClose: _toggleQueuePanel,
+                            onShuffleToggle: () => notifier.toggleShuffle(),
                             onTapTrack: (index) =>
                                 notifier.skipToQueueIndex(index),
                             onRemoveTrack: (index) =>

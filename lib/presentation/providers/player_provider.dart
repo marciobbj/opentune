@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:math' show Random;
 import 'dart:ui';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
@@ -33,6 +34,8 @@ class PlayerState {
   final List<Track> queue;
   final int queueIndex;
   final double volume;
+  final bool isShuffled;
+  final List<Track> originalQueue;
 
   const PlayerState({
     this.currentTrack,
@@ -47,6 +50,8 @@ class PlayerState {
     this.queue = const [],
     this.queueIndex = 0,
     this.volume = 1.0,
+    this.isShuffled = false,
+    this.originalQueue = const [],
   });
 
   double get progress => duration.inMilliseconds > 0
@@ -70,6 +75,8 @@ class PlayerState {
     List<Track>? queue,
     int? queueIndex,
     double? volume,
+    bool? isShuffled,
+    List<Track>? originalQueue,
   }) {
     return PlayerState(
       currentTrack: currentTrack ?? this.currentTrack,
@@ -84,6 +91,8 @@ class PlayerState {
       queue: queue ?? this.queue,
       queueIndex: queueIndex ?? this.queueIndex,
       volume: volume ?? this.volume,
+      isShuffled: isShuffled ?? this.isShuffled,
+      originalQueue: originalQueue ?? this.originalQueue,
     );
   }
 }
@@ -284,7 +293,12 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
   Future<void> loadQueue(List<Track> queue, {int initialIndex = 0}) async {
     if (queue.isEmpty) return;
-    state = state.copyWith(queue: queue, queueIndex: initialIndex);
+    state = state.copyWith(
+      queue: queue,
+      queueIndex: initialIndex,
+      originalQueue: queue,
+      isShuffled: false,
+    );
     await loadTrack(queue[initialIndex]);
     await play(); // Autoplay when loading a queue
   }
@@ -358,6 +372,40 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       state = state.copyWith(queueIndex: prevIndex);
       await loadTrack(state.queue[prevIndex]);
       await play(); // Autoplay previous track
+    }
+  }
+
+  void toggleShuffle() {
+    if (state.queue.length <= 1) return;
+
+    if (state.isShuffled) {
+      // Restore original order
+      final currentTrack = state.currentTrack;
+      final restored = List<Track>.from(state.originalQueue);
+      final newIndex = currentTrack != null
+          ? restored
+                .indexWhere((t) => t.id == currentTrack.id)
+                .clamp(0, restored.length - 1)
+          : 0;
+      state = state.copyWith(
+        queue: restored,
+        queueIndex: newIndex,
+        isShuffled: false,
+      );
+    } else {
+      // Save original order and shuffle
+      final original = List<Track>.from(state.queue);
+      final currentTrack = state.queue[state.queueIndex];
+      final remaining = List<Track>.from(state.queue)
+        ..removeAt(state.queueIndex);
+      remaining.shuffle(Random());
+      final shuffled = [currentTrack, ...remaining];
+      state = state.copyWith(
+        originalQueue: original,
+        queue: shuffled,
+        queueIndex: 0,
+        isShuffled: true,
+      );
     }
   }
 

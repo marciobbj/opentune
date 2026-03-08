@@ -7,10 +7,12 @@ class BottomControls extends StatelessWidget {
   final bool loopEnabled;
   final bool hasLoop;
   final int sectionCount;
+  final bool isShuffled;
   final VoidCallback? onTempoTap;
   final VoidCallback? onPitchTap;
   final VoidCallback? onLoopToggle;
   final VoidCallback? onSectionsTap;
+  final VoidCallback? onShuffleTap;
 
   const BottomControls({
     super.key,
@@ -19,10 +21,12 @@ class BottomControls extends StatelessWidget {
     required this.loopEnabled,
     required this.hasLoop,
     this.sectionCount = 0,
+    this.isShuffled = false,
     this.onTempoTap,
     this.onPitchTap,
     this.onLoopToggle,
     this.onSectionsTap,
+    this.onShuffleTap,
   });
 
   String get _tempoText => '${(tempo * 100).round()}%';
@@ -87,6 +91,16 @@ class BottomControls extends StatelessWidget {
             isActive: loopEnabled,
             activeColor: AppColors.markerCyan,
             onTap: onLoopToggle,
+          ),
+
+          // Shuffle
+          _ControlChip(
+            label: 'Shuffle',
+            value: isShuffled ? 'ON' : 'OFF',
+            icon: Icons.shuffle_rounded,
+            isActive: isShuffled,
+            activeColor: AppColors.markerGreen,
+            onTap: onShuffleTap,
           ),
         ],
       ),

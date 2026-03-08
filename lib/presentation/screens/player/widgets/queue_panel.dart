@@ -5,7 +5,9 @@ import '../../../../domain/entities/track.dart';
 class QueuePanel extends StatelessWidget {
   final List<Track> queue;
   final int currentIndex;
+  final bool isShuffled;
   final VoidCallback? onClose;
+  final VoidCallback? onShuffleToggle;
   final void Function(int index)? onTapTrack;
   final void Function(int index)? onRemoveTrack;
   final void Function(int oldIndex, int newIndex)? onReorder;
@@ -14,7 +16,9 @@ class QueuePanel extends StatelessWidget {
     super.key,
     required this.queue,
     required this.currentIndex,
+    this.isShuffled = false,
     this.onClose,
+    this.onShuffleToggle,
     this.onTapTrack,
     this.onRemoveTrack,
     this.onReorder,
@@ -39,7 +43,7 @@ class QueuePanel extends StatelessWidget {
             padding: EdgeInsets.only(
               top: MediaQuery.of(context).padding.top + 12,
               left: 16,
-              right: 8,
+              right: 4,
               bottom: 12,
             ),
             decoration: BoxDecoration(
@@ -70,14 +74,42 @@ class QueuePanel extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        '${queue.length} track${queue.length != 1 ? "s" : ""}',
+                        '${queue.length} track${queue.length != 1 ? "s" : ""}${isShuffled ? " · Shuffled" : ""}',
                         style: TextStyle(
-                          color: context.colors.textMuted,
+                          color: isShuffled
+                              ? Theme.of(
+                                  context,
+                                ).colorScheme.primary.withValues(alpha: 0.8)
+                              : context.colors.textMuted,
                           fontSize: 11,
                         ),
                       ),
                     ],
                   ),
+                ),
+                IconButton(
+                  icon: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: isShuffled
+                          ? Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.15)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Icon(
+                      Icons.shuffle_rounded,
+                      color: isShuffled
+                          ? Theme.of(context).colorScheme.primary
+                          : context.colors.textMuted,
+                      size: 18,
+                    ),
+                  ),
+                  onPressed: onShuffleToggle,
+                  visualDensity: VisualDensity.compact,
+                  tooltip: isShuffled ? 'Disable shuffle' : 'Shuffle queue',
                 ),
                 IconButton(
                   icon: Icon(
@@ -303,10 +335,7 @@ class _QueueTrackTile extends StatelessWidget {
                 onPressed: onRemove,
                 visualDensity: VisualDensity.compact,
                 padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(
-                  minWidth: 28,
-                  minHeight: 28,
-                ),
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                 splashRadius: 16,
               ),
             ],
