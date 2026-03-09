@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:share_plus/share_plus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,6 +19,7 @@ import 'widgets/mini_waveform.dart';
 import 'widgets/tempo_control.dart';
 import 'widgets/pitch_control.dart';
 import 'widgets/queue_panel.dart';
+import '../../../core/utils/share_image_generator.dart';
 
 class PlayerScreen extends ConsumerStatefulWidget {
   const PlayerScreen({super.key});
@@ -62,6 +64,96 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   void _toggleQueuePanel() {
     setState(() => _showQueuePanel = !_showQueuePanel);
+  }
+
+  Future<void> _shareCurrentTrack() async {
+    final state = ref.read(playerProvider);
+    if (state.currentTrack == null) return;
+
+    // Show loading indicator
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text('Generating share image...'),
+          ],
+        ),
+        duration: const Duration(seconds: 10),
+        backgroundColor: Theme.of(context).colorScheme.surface,
+      ),
+    );
+
+    final imageFile = await ShareImageGenerator.generate(
+      trackTitle: state.currentTrack!.title,
+      artistName: state.currentTrack!.artist,
+      albumArtPath: state.currentTrack!.albumArtPath,
+      waveformData: state.waveformData,
+    );
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+    if (imageFile == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to generate share image'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
+      // Desktop: save to Pictures folder and open with system viewer
+      final home = Platform.environment['HOME'] ?? '/tmp';
+      final saveDir = Directory('$home/Pictures/OpenTune');
+      if (!saveDir.existsSync()) {
+        saveDir.createSync(recursive: true);
+      }
+      final sanitizedTitle = state.currentTrack!.title
+          .replaceAll(RegExp(r'[^\w\s\-]'), '')
+          .replaceAll(RegExp(r'\s+'), '_');
+      final savedPath =
+          '${saveDir.path}/${sanitizedTitle}_${DateTime.now().millisecondsSinceEpoch}.png';
+      await imageFile.copy(savedPath);
+
+      // Open with system image viewer
+      if (Platform.isLinux) {
+        await Process.run('xdg-open', [savedPath]);
+      } else if (Platform.isMacOS) {
+        await Process.run('open', [savedPath]);
+      } else if (Platform.isWindows) {
+        await Process.run('explorer', [savedPath]);
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Image saved to $savedPath'),
+          duration: const Duration(seconds: 4),
+          action: SnackBarAction(label: 'OK', onPressed: () {}),
+        ),
+      );
+    } else {
+      // Mobile: use share sheet
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(imageFile.path)],
+          text: '🎵 Listening to ${state.currentTrack!.title} on OpenTune',
+        ),
+      );
+    }
   }
 
   void _onSectionDragging(Section? section) {
@@ -115,7 +207,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                         onBackPressed: () =>
                             ref.read(navigationProvider.notifier).state = 0,
                         onQueueToggle: _toggleQueuePanel,
+                        onSharePressed: _shareCurrentTrack,
                         isQueueOpen: _showQueuePanel,
+                        hasTrack: state.currentTrack != null,
                         queueCount: state.queue.length,
                         onSectionUpdated: (section) =>
                             notifier.updateSection(section),

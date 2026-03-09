@@ -264,25 +264,25 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         await _player.seek(settings.lastPosition);
       }
 
-      // Extract waveform
-      final waveform = await WaveformExtractor.extract(activeTrack.filePath);
-      if (_isStaleLoad(loadId)) {
-        if (activeBookmarkPath != null) {
-          await BookmarkService.stopAccessing(activeBookmarkPath);
-        }
-        return;
-      }
-
       _activeBookmarkPath = activeBookmarkPath;
 
       state = state.copyWith(
         currentTrack: activeTrack,
         settings: settings,
         sections: sections,
-        waveformData: waveform,
         isLoading: false,
         duration: _player.duration ?? Duration.zero,
       );
+
+      // Extract waveform asynchronously
+      WaveformExtractor.extract(activeTrack.filePath)
+          .then((waveform) {
+            if (_isStaleLoad(loadId)) return;
+            state = state.copyWith(waveformData: waveform);
+          })
+          .catchError((_) {
+            // Ignore extraction errors
+          });
     } catch (e) {
       if (!_isStaleLoad(loadId)) {
         state = state.copyWith(isLoading: false);
