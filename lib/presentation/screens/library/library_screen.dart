@@ -1661,12 +1661,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final descController = TextEditingController();
 
     final presetIcons = [
-      {'name': 'Show ao Vivo', 'icon': '🎸'},
-      {'name': 'Barzinho', 'icon': '🍻'},
-      {'name': 'Ensaio', 'icon': '🎵'},
-      {'name': 'Estudo', 'icon': '📚'},
+      {'name': 'Live Show', 'icon': '🎸'},
+      {'name': 'Bar Night', 'icon': '🍻'},
+      {'name': 'Rehearsal', 'icon': '🎵'},
+      {'name': 'Practice', 'icon': '📚'},
       {'name': 'Covers', 'icon': '🎤'},
-      {'name': 'Originais', 'icon': '✨'},
+      {'name': 'Originals', 'icon': '✨'},
     ];
 
     showDialog(
@@ -1697,7 +1697,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   decoration: InputDecoration(
                     labelText: 'Playlist Name',
                     labelStyle: TextStyle(color: context.colors.textMuted),
-                    hintText: 'e.g. Show de Agosto, Barzinho...',
+                    hintText: 'e.g. Live Show, Rehearsal...',
                     hintStyle: TextStyle(
                       color: context.colors.textMuted.withValues(alpha: 0.5),
                     ),

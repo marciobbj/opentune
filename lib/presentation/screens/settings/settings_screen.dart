@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/cache_service.dart';
 import '../../providers/settings_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -12,6 +13,83 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  int _cacheSizeBytes = 0;
+  bool _isCacheLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCacheSize();
+  }
+
+  Future<void> _loadCacheSize() async {
+    final size = await CacheService.getCacheSize();
+    if (mounted) setState(() => _cacheSizeBytes = size);
+  }
+
+  Future<void> _clearCache() async {
+    // Capture context-dependent objects before any async gap.
+    final messenger = ScaffoldMessenger.of(context);
+    final colors = context.colors;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: colors.bgCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Clear Cache', style: TextStyle(color: colors.textPrimary)),
+        content: Text(
+          'This will remove waveform cache files '
+          '(${CacheService.formatSize(_cacheSizeBytes)}) and flush the '
+          'in-memory image cache. Waveforms will be re-generated the next '
+          'time you play a track.',
+          style: TextStyle(color: colors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(false),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: colors.textSecondary),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'Clear',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _isCacheLoading = true);
+    final freed = await CacheService.clearAll();
+    await _loadCacheSize();
+    if (mounted) {
+      setState(() => _isCacheLoading = false);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            freed > 0
+                ? 'Cache cleared — ${CacheService.formatSize(freed)} freed.'
+                : 'Cache was already empty.',
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final customColor = ref.watch(
@@ -214,6 +292,63 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       .read(settingsProvider.notifier)
                       .setShowAlbumArtInPlayer(value);
                 },
+              ),
+            ),
+            const SizedBox(height: 32),
+            Text(
+              'Storage',
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 16),
+            Card(
+              color: Theme.of(context).cardTheme.color,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  width: 0.5,
+                ),
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
+                leading: _isCacheLoading
+                    ? SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      )
+                    : Icon(
+                        Icons.cleaning_services_rounded,
+                        color: Theme.of(context).iconTheme.color,
+                      ),
+                title: const Text(
+                  'Clear Cache',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  _cacheSizeBytes > 0
+                      ? 'Waveform cache: ${CacheService.formatSize(_cacheSizeBytes)}'
+                      : 'Waveform cache is empty',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                trailing: Icon(
+                  Icons.delete_outline_rounded,
+                  color: _cacheSizeBytes > 0
+                      ? Colors.red.shade400
+                      : Theme.of(context).disabledColor,
+                ),
+                enabled: !_isCacheLoading,
+                onTap: _cacheSizeBytes > 0 && !_isCacheLoading
+                    ? _clearCache
+                    : null,
               ),
             ),
           ],
