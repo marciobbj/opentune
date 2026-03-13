@@ -303,6 +303,33 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     await play(); // Autoplay when loading a queue
   }
 
+  Future<void> addToQueue(List<Track> tracks) async {
+    if (tracks.isEmpty) return;
+
+    if (state.queue.isEmpty) {
+      await loadQueue(tracks);
+      return;
+    }
+
+    final baseOriginal = state.originalQueue.isEmpty
+        ? List<Track>.from(state.queue)
+        : List<Track>.from(state.originalQueue);
+
+    state = state.copyWith(
+      queue: [...state.queue, ...tracks],
+      originalQueue: [...baseOriginal, ...tracks],
+    );
+  }
+
+  void clearQueue() {
+    state = state.copyWith(
+      queue: [],
+      queueIndex: 0,
+      isShuffled: false,
+      originalQueue: [],
+    );
+  }
+
   void removeFromQueue(int index) {
     if (index < 0 || index >= state.queue.length) return;
     final newQueue = List<Track>.from(state.queue)..removeAt(index);

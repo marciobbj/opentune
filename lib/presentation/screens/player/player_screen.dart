@@ -519,6 +519,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                             isShuffled: state.isShuffled,
                             onClose: _toggleQueuePanel,
                             onShuffleToggle: () => notifier.toggleShuffle(),
+                            onClearQueue: () => notifier.clearQueue(),
                             onTapTrack: (index) =>
                                 notifier.skipToQueueIndex(index),
                             onRemoveTrack: (index) =>

@@ -1350,7 +1350,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final tracks = _selectedTracks;
     if (tracks.isEmpty) return;
     final notifier = ref.read(playerProvider.notifier);
-    notifier.loadQueue(tracks);
+    notifier.addToQueue(tracks);
     _exitSelectionMode();
     ref.read(navigationProvider.notifier).state = 1;
   }
