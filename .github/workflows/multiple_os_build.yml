@@ -22,22 +22,21 @@ jobs:
               # 1. Instala dependências do Linux
               sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
               
-              # 2. LIMPEZA CRÍTICA: Remove configurações de caminhos locais
-              rm -f android/local.properties
-              flutter clean
+              # 2. Força o Flutter a reconhecer o caminho correto do SDK no GitHub Actions
+              # A variável FLUTTER_ROOT é preenchida automaticamente pela flutter-action
+              echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
               
-              # 3. REGENERAÇÃO: O flutter pub get recria o local.properties com o PATH correto
+              # 3. Limpeza total
+              flutter clean
               flutter pub get
               
-              # 4. BUILDS
-              flutter build apk --release
-              flutter build linux --release
+              # 4. Build APK usando flags de sobrescrita de caminho
+              flutter build apk --release --target-platform android-arm64 --split-per-abi
               
-              # 5. PACKAGING
+              # 5. Build Linux
+              flutter build linux --release
               zip -rj linux-release.zip build/linux/x64/release/bundle/
             artifacts: "build/app/outputs/flutter-apk/*.apk,linux-release.zip"
-
-          
           - target: windows
             os: windows-latest
             build_cmd: |
