@@ -20,47 +20,23 @@ jobs:
             os: ubuntu-latest
             build_cmd: |
               sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
-              # FORÇA O PATH: Garante que o flutter da action seja o primeiro
               export PATH="$FLUTTER_ROOT/bin:$PATH"
-              flutter config --no-analytics
-              flutter pub get
               flutter build apk --release
               flutter build linux --release
               zip -rj linux-release.zip build/linux/x64/release/bundle/
             artifacts: "build/app/outputs/flutter-apk/*.apk,linux-release.zip"
-            os: ubuntu-latest
-            build_cmd: |
-              # 1. Instala dependências do Linux
-              sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
-              
-              # 2. Força o Flutter a reconhecer o caminho correto do SDK no GitHub Actions
-              # A variável FLUTTER_ROOT é preenchida automaticamente pela flutter-action
-              echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
-              
-              # 3. Limpeza total
-              flutter clean
-              flutter pub get
-              
-              # 4. Build APK usando flags de sobrescrita de caminho
-              flutter build apk --release --target-platform android-arm64 --split-per-abi
-              
-              # 5. Build Linux
-              flutter build linux --release
-              zip -rj linux-release.zip build/linux/x64/release/bundle/
-            artifacts: "build/app/outputs/flutter-apk/*.apk,linux-release.zip"
-
+          
           - target: windows
             os: windows-latest
             build_cmd: |
               flutter build windows --release
-              Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath windows-release.zip
+              powershell Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath windows-release.zip -Force
             artifacts: "windows-release.zip"
 
           - target: macos
             os: macos-latest
             build_cmd: |
               flutter build macos --release
-              # Cria o zip garantindo o caminho correto do build padrão do Flutter
               zip -r macos-release.zip build/macos/Build/Products/Release/*.app
             artifacts: "macos-release.zip"
 
@@ -69,7 +45,7 @@ jobs:
       
       - name: Setup Java
         if: matrix.target == 'android-linux'
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
