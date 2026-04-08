@@ -1,6 +1,7 @@
 name: Multi-Platform Build
 on:
   push:
+    branches: ["main"]
     tags:
       - 'v*' # Executa apenas em tags de versão para evitar releases em cada commit
 
