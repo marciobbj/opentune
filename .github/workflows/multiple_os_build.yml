@@ -18,13 +18,22 @@ jobs:
         include:
           - target: android-linux
             os: ubuntu-latest
-            # Corrigido: Instalamos dependências e usamos caminhos relativos
             build_cmd: |
+              # Instala dependências do Linux Desktop
               sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+              
+              # Configura o Flutter para não procurar o binário no local global do sistema
+              flutter config --no-analytics
+              
+              # Build Android (APK) - O segredo é rodar o pub get antes
+              flutter pub get
               flutter build apk --release
+              
+              # Build Linux
               flutter build linux --release
-              cd build/linux/x64/release/bundle && zip -r ../../../../linux-release.zip .
+              zip -rj linux-release.zip build/linux/x64/release/bundle/
             artifacts: "build/app/outputs/flutter-apk/*.apk,linux-release.zip"
+
           
           - target: windows
             os: windows-latest
@@ -37,7 +46,8 @@ jobs:
             os: macos-latest
             build_cmd: |
               flutter build macos --release
-              cd build/macos/Build/Products/Release && zip -r ../../../../macos-release.zip *.app
+              # Cria o zip garantindo o caminho correto do build padrão do Flutter
+              zip -r macos-release.zip build/macos/Build/Products/Release/*.app
             artifacts: "macos-release.zip"
 
     steps:
