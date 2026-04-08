@@ -4,39 +4,55 @@ on:
     branches: ["main"]
     tags:
       - 'v*' # Executa apenas em tags de versão para evitar releases em cada commit
+
 permissions:
-  contents: write # Permite criar e editar releases/tags
+  contents: write
+
 jobs:
-  build-and-release:
+  build:
     name: Build for ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - target: android-linux
             os: ubuntu-latest
+            # Corrigido: Instalamos dependências e usamos caminhos relativos
             build_cmd: |
-              sudo apt-get update && sudo apt-get install -y ninja-build libgtk-3-dev
+              sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
               flutter build apk --release
               flutter build linux --release
-            artifacts: "build/app/outputs/flutter-apk/*.apk,build/linux/x64/release/bundle/*"
+              cd build/linux/x64/release/bundle && zip -r ../../../../linux-release.zip .
+            artifacts: "build/app/outputs/flutter-apk/*.apk,linux-release.zip"
           
           - target: windows
             os: windows-latest
-            build_cmd: flutter build windows --release
-            artifacts: "build/windows/x64/runner/Release/*"
+            build_cmd: |
+              flutter build windows --release
+              Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath windows-release.zip
+            artifacts: "windows-release.zip"
 
           - target: macos
             os: macos-latest
-            build_cmd: flutter build macos --release
-            artifacts: "build/macos/Build/Products/Release/*.app"
+            build_cmd: |
+              flutter build macos --release
+              cd build/macos/Build/Products/Release && zip -r ../../../../macos-release.zip *.app
+            artifacts: "macos-release.zip"
 
     steps:
       - uses: actions/checkout@v4
       
+      - name: Setup Java
+        if: matrix.target == 'android-linux'
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
       - uses: subosito/flutter-action@v2
         with:
-          channel: 'main'
+          channel: 'stable'
           cache: true
 
       - name: Install dependencies
@@ -45,11 +61,11 @@ jobs:
       - name: Build Platform
         run: ${{ matrix.build_cmd }}
 
-      - name: Upload to Single Release
+      - name: Upload to Release
         uses: ncipollo/release-action@v1
         with:
           artifacts: ${{ matrix.artifacts }}
           token: ${{ secrets.GITHUB_TOKEN }}
-          allowUpdates: true # ESSENCIAL: Permite que múltiplos jobs enviem para a mesma tag
-          replacesArtifacts: false # Mantém os arquivos enviados pelos jobs anteriores
+          allowUpdates: true
+          replacesArtifacts: false
           tag: ${{ github.ref_name }}
