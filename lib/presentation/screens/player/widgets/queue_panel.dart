@@ -5,7 +5,10 @@ import '../../../../domain/entities/track.dart';
 class QueuePanel extends StatelessWidget {
   final List<Track> queue;
   final int currentIndex;
+  final bool isShuffled;
   final VoidCallback? onClose;
+  final VoidCallback? onShuffleToggle;
+  final VoidCallback? onClearQueue;
   final void Function(int index)? onTapTrack;
   final void Function(int index)? onRemoveTrack;
   final void Function(int oldIndex, int newIndex)? onReorder;
@@ -14,7 +17,10 @@ class QueuePanel extends StatelessWidget {
     super.key,
     required this.queue,
     required this.currentIndex,
+    this.isShuffled = false,
     this.onClose,
+    this.onShuffleToggle,
+    this.onClearQueue,
     this.onTapTrack,
     this.onRemoveTrack,
     this.onReorder,
@@ -70,23 +76,96 @@ class QueuePanel extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        '${queue.length} track${queue.length != 1 ? "s" : ""}',
+                        '${queue.length} track${queue.length != 1 ? "s" : ""}${isShuffled ? " · Shuffled" : ""}',
                         style: TextStyle(
-                          color: context.colors.textMuted,
+                          color: isShuffled
+                              ? Theme.of(
+                                  context,
+                                ).colorScheme.primary.withValues(alpha: 0.8)
+                              : context.colors.textMuted,
                           fontSize: 11,
                         ),
                       ),
                     ],
                   ),
                 ),
-                IconButton(
-                  icon: Icon(
-                    Icons.close_rounded,
-                    color: context.colors.textMuted,
-                    size: 20,
+                SizedBox(
+                  width: 102,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: isShuffled
+                              ? Theme.of(
+                                  context,
+                                ).colorScheme.primary.withValues(alpha: 0.15)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.shuffle_rounded,
+                            color: isShuffled
+                                ? Theme.of(context).colorScheme.primary
+                                : context.colors.textMuted,
+                            size: 16,
+                          ),
+                          onPressed: onShuffleToggle,
+                          tooltip: isShuffled
+                              ? 'Disable shuffle'
+                              : 'Shuffle queue',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints.tightFor(
+                            width: 30,
+                            height: 30,
+                          ),
+                          splashRadius: 16,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      SizedBox(
+                        width: 30,
+                        height: 30,
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.cleaning_services_rounded,
+                            color: context.colors.textMuted,
+                            size: 16,
+                          ),
+                          onPressed: onClearQueue,
+                          tooltip: 'Clean queue',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints.tightFor(
+                            width: 30,
+                            height: 30,
+                          ),
+                          splashRadius: 16,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      SizedBox(
+                        width: 30,
+                        height: 30,
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.close_rounded,
+                            color: context.colors.textMuted,
+                            size: 17,
+                          ),
+                          onPressed: onClose,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints.tightFor(
+                            width: 30,
+                            height: 30,
+                          ),
+                          splashRadius: 16,
+                        ),
+                      ),
+                    ],
                   ),
-                  onPressed: onClose,
-                  visualDensity: VisualDensity.compact,
                 ),
               ],
             ),
@@ -97,6 +176,7 @@ class QueuePanel extends StatelessWidget {
             child: queue.isEmpty
                 ? _buildEmptyState(context)
                 : ReorderableListView.builder(
+                    buildDefaultDragHandles: false,
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     itemCount: queue.length,
                     onReorder: (oldIndex, newIndex) {
@@ -144,7 +224,6 @@ class QueuePanel extends StatelessWidget {
                           isCurrent: isCurrent,
                           index: index,
                           onTap: () => onTapTrack?.call(index),
-                          onRemove: () => onRemoveTrack?.call(index),
                         ),
                       );
                     },
@@ -193,7 +272,6 @@ class _QueueTrackTile extends StatelessWidget {
   final bool isCurrent;
   final int index;
   final VoidCallback? onTap;
-  final VoidCallback? onRemove;
 
   const _QueueTrackTile({
     super.key,
@@ -201,7 +279,6 @@ class _QueueTrackTile extends StatelessWidget {
     required this.isCurrent,
     required this.index,
     this.onTap,
-    this.onRemove,
   });
 
   @override
@@ -291,23 +368,6 @@ class _QueueTrackTile extends StatelessWidget {
                     ),
                   ],
                 ),
-              ),
-
-              // Remove button
-              IconButton(
-                icon: Icon(
-                  Icons.close_rounded,
-                  color: context.colors.textMuted.withValues(alpha: 0.5),
-                  size: 16,
-                ),
-                onPressed: onRemove,
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(
-                  minWidth: 28,
-                  minHeight: 28,
-                ),
-                splashRadius: 16,
               ),
             ],
           ),

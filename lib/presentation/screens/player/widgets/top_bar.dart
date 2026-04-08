@@ -12,8 +12,10 @@ class TopBar extends StatelessWidget {
   final List<Section> sections;
   final VoidCallback? onQueueToggle;
   final VoidCallback? onBackPressed;
+  final VoidCallback? onSharePressed;
   final bool isQueueOpen;
   final int queueCount;
+  final bool hasTrack;
   final ValueChanged<Section>? onSectionUpdated;
   final ValueChanged<Section?>? onSectionDragging;
   final Section? draggingSection;
@@ -28,7 +30,9 @@ class TopBar extends StatelessWidget {
     this.sections = const [],
     this.onQueueToggle,
     this.onBackPressed,
+    this.onSharePressed,
     this.isQueueOpen = false,
+    this.hasTrack = false,
     this.queueCount = 0,
     this.onSectionUpdated,
     this.onSectionDragging,
@@ -123,6 +127,15 @@ class TopBar extends StatelessWidget {
                   ],
                 ),
               ),
+              // Share button
+              if (hasTrack)
+                IconButton(
+                  icon: const Icon(Icons.ios_share_rounded, size: 20),
+                  color: context.colors.textSecondary,
+                  onPressed: onSharePressed,
+                  tooltip: 'Share',
+                ),
+              // Queue toggle button
               IconButton(
                 icon: Badge(
                   isLabelVisible: queueCount > 0 && !isQueueOpen,

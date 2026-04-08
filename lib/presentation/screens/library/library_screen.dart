@@ -554,25 +554,27 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              IconButton(
-                onPressed: _scanDirectory,
-                tooltip: 'Scan directory',
-                icon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    Icons.folder_open_rounded,
-                    color: Theme.of(context).colorScheme.primary,
-                    size: 22,
+              if (!Platform.isAndroid && !Platform.isIOS) ...[
+                IconButton(
+                  onPressed: _scanDirectory,
+                  tooltip: 'Scan directory',
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      Icons.folder_open_rounded,
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 22,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 4),
+                const SizedBox(width: 4),
+              ],
               IconButton(
                 onPressed: _importTrack,
                 tooltip: 'Import files',
@@ -1348,7 +1350,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final tracks = _selectedTracks;
     if (tracks.isEmpty) return;
     final notifier = ref.read(playerProvider.notifier);
-    notifier.loadQueue(tracks);
+    notifier.addToQueue(tracks);
     _exitSelectionMode();
     ref.read(navigationProvider.notifier).state = 1;
   }
@@ -1661,12 +1663,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final descController = TextEditingController();
 
     final presetIcons = [
-      {'name': 'Show ao Vivo', 'icon': '🎸'},
-      {'name': 'Barzinho', 'icon': '🍻'},
-      {'name': 'Ensaio', 'icon': '🎵'},
-      {'name': 'Estudo', 'icon': '📚'},
+      {'name': 'Live Show', 'icon': '🎸'},
+      {'name': 'Bar Night', 'icon': '🍻'},
+      {'name': 'Rehearsal', 'icon': '🎵'},
+      {'name': 'Practice', 'icon': '📚'},
       {'name': 'Covers', 'icon': '🎤'},
-      {'name': 'Originais', 'icon': '✨'},
+      {'name': 'Originals', 'icon': '✨'},
     ];
 
     showDialog(
@@ -1697,7 +1699,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   decoration: InputDecoration(
                     labelText: 'Playlist Name',
                     labelStyle: TextStyle(color: context.colors.textMuted),
-                    hintText: 'e.g. Show de Agosto, Barzinho...',
+                    hintText: 'e.g. Live Show, Rehearsal...',
                     hintStyle: TextStyle(
                       color: context.colors.textMuted.withValues(alpha: 0.5),
                     ),

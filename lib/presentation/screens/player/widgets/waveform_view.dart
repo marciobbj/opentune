@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -389,8 +391,8 @@ class WaveformPainter extends CustomPainter {
           t,
         )!;
       } else {
-        // Unplayed portion
-        color = inactiveColor;
+        // Unplayed portion — white with low opacity for contrast over album art
+        color = Colors.white.withValues(alpha: 0.25);
       }
 
       final paint = Paint()
@@ -468,6 +470,7 @@ class WaveformView extends StatefulWidget {
   final ValueChanged<Section>? onSectionUpdated;
   final ValueChanged<Section?>? onSectionDragging;
   final Section? draggingSection;
+  final String? albumArtPath;
 
   const WaveformView({
     super.key,
@@ -483,6 +486,7 @@ class WaveformView extends StatefulWidget {
     this.onSectionUpdated,
     this.onSectionDragging,
     this.draggingSection,
+    this.albumArtPath,
   });
 
   @override
@@ -493,6 +497,7 @@ class _WaveformViewState extends State<WaveformView>
     with SingleTickerProviderStateMixin {
   late AnimationController _glowController;
   _SectionDragState? _dragState;
+  bool _albumArtExists = false;
 
   static const double _handleHitRadius = 18.0;
   static const int _minSectionMs = 1000; // 1 second minimum
@@ -504,6 +509,20 @@ class _WaveformViewState extends State<WaveformView>
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
+    _updateAlbumArtExists();
+  }
+
+  @override
+  void didUpdateWidget(covariant WaveformView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.albumArtPath != widget.albumArtPath) {
+      _updateAlbumArtExists();
+    }
+  }
+
+  void _updateAlbumArtExists() {
+    _albumArtExists =
+        widget.albumArtPath != null && File(widget.albumArtPath!).existsSync();
   }
 
   @override
@@ -670,23 +689,53 @@ class _WaveformViewState extends State<WaveformView>
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: CustomPaint(
-                painter: WaveformPainter(
-                  waveformData: widget.waveformData,
-                  progress: widget.progress,
-                  duration: widget.duration,
-                  sections: widget.sections,
-                  primaryColor: Theme.of(context).colorScheme.primary,
-                  mutedColor: context.colors.textMuted,
-                  inactiveColor: context.colors.waveformInactive,
-                  loopStart: widget.loopStart,
-                  loopEnd: widget.loopEnd,
-                  loopEnabled: widget.loopEnabled,
-                  draggingSectionId: draggingSectionId,
-                  dragStartOverride: dragStartOverride,
-                  dragEndOverride: dragEndOverride,
-                ),
-                size: Size(constraints.maxWidth, constraints.maxHeight),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Album art background (blurred & faded)
+                  if (_albumArtExists)
+                    RepaintBoundary(
+                      child: Opacity(
+                        opacity: 0.20,
+                        child: ImageFiltered(
+                          imageFilter: ui.ImageFilter.blur(
+                            sigmaX: 10,
+                            sigmaY: 10,
+                            tileMode: TileMode.decal,
+                          ),
+                          child: Image.file(
+                            File(widget.albumArtPath!),
+                            fit: BoxFit.cover,
+                            alignment: Alignment.center,
+                            cacheWidth: 400,
+                            filterQuality: FilterQuality.low,
+                            gaplessPlayback: true,
+                            errorBuilder: (_, __, ___) =>
+                                const SizedBox.shrink(),
+                          ),
+                        ),
+                      ),
+                    ),
+                  // Waveform overlay
+                  CustomPaint(
+                    painter: WaveformPainter(
+                      waveformData: widget.waveformData,
+                      progress: widget.progress,
+                      duration: widget.duration,
+                      sections: widget.sections,
+                      primaryColor: Theme.of(context).colorScheme.primary,
+                      mutedColor: context.colors.textMuted,
+                      inactiveColor: context.colors.waveformInactive,
+                      loopStart: widget.loopStart,
+                      loopEnd: widget.loopEnd,
+                      loopEnabled: widget.loopEnabled,
+                      draggingSectionId: draggingSectionId,
+                      dragStartOverride: dragStartOverride,
+                      dragEndOverride: dragEndOverride,
+                    ),
+                    size: Size(constraints.maxWidth, constraints.maxHeight),
+                  ),
+                ],
               ),
             ),
           ),
