@@ -1,0 +1,53 @@
+name: Multi-Platform Build
+on:
+  push:
+    tags:
+      - 'v*' # Executa apenas em tags de versão para evitar releases em cada commit
+
+jobs:
+  build-and-release:
+    name: Build for ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - target: android-linux
+            os: ubuntu-latest
+            build_cmd: |
+              sudo apt-get update && sudo apt-get install -y ninja-build libgtk-3-dev
+              flutter build apk --release
+              flutter build linux --release
+            artifacts: "build/app/outputs/flutter-apk/*.apk,build/linux/x64/release/bundle/*"
+          
+          - target: windows
+            os: windows-latest
+            build_cmd: flutter build windows --release
+            artifacts: "build/windows/x64/runner/Release/*"
+
+          - target: macos
+            os: macos-latest
+            build_cmd: flutter build macos --release
+            artifacts: "build/macos/Build/Products/Release/*.app"
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'main'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Platform
+        run: ${{ matrix.build_cmd }}
+
+      - name: Upload to Single Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: ${{ matrix.artifacts }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          allowUpdates: true # ESSENCIAL: Permite que múltiplos jobs enviem para a mesma tag
+          replacesArtifacts: false # Mantém os arquivos enviados pelos jobs anteriores
+          tag: ${{ github.ref_name }}
