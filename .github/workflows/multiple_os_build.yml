@@ -4,7 +4,8 @@ on:
     branches: ["main"]
     tags:
       - 'v*' # Executa apenas em tags de versão para evitar releases em cada commit
-
+permissions:
+  contents: write # Permite criar e editar releases/tags
 jobs:
   build-and-release:
     name: Build for ${{ matrix.target }}
