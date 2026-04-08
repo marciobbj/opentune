@@ -55,6 +55,15 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Resolve Flutter SDK path
+        if: matrix.target == 'android-linux'
+        shell: bash
+        run: |
+          flutter_bin="$(readlink -f "$(command -v flutter)")"
+          flutter_root="$(cd "$(dirname "$flutter_bin")/.." && pwd)"
+          echo "FLUTTER_ROOT=$flutter_root" >> "$GITHUB_ENV"
+          echo "$flutter_root/bin" >> "$GITHUB_PATH"
+
       - name: Install dependencies
         run: flutter pub get
 
