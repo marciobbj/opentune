@@ -12,6 +12,7 @@ import '../../domain/entities/playlist.dart';
 import '../../data/datasources/local_database.dart';
 import '../../core/utils/waveform_extractor.dart';
 import '../../core/utils/bookmark_service.dart';
+import 'settings_provider.dart';
 
 // ── Audio Player Instance ──
 final audioPlayerProvider = Provider<AudioPlayer>((ref) {
@@ -100,16 +101,20 @@ class PlayerState {
 // ── Player Notifier ──
 class PlayerNotifier extends StateNotifier<PlayerState> {
   final AudioPlayer _player;
+  final Ref _ref;
   final List<StreamSubscription> _subscriptions = [];
   int _loadGeneration = 0;
   String? _activeBookmarkPath;
 
-  PlayerNotifier(this._player) : super(const PlayerState()) {
+  PlayerNotifier(this._player, this._ref) : super(const PlayerState()) {
     _player.setVolume(0.3);
     _listenToPlayer();
   }
 
   bool _isStaleLoad(int loadId) => loadId != _loadGeneration;
+
+  bool get _startQueueFromBeginning =>
+      _ref.read(settingsProvider).startQueueFromBeginning;
 
   Future<void> _releaseActiveBookmark() async {
     final path = _activeBookmarkPath;
@@ -189,7 +194,10 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     }
   }
 
-  Future<void> loadTrack(Track track) async {
+  Future<void> loadTrack(
+    Track track, {
+    bool startFromBeginning = false,
+  }) async {
     final loadId = ++_loadGeneration;
     state = state.copyWith(
       isLoading: true,
@@ -259,9 +267,10 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       // Apply saved settings
       await _player.setSpeed(settings.tempo);
 
-      // Seek to last position
-      if (settings.lastPosition > Duration.zero) {
+      if (!startFromBeginning && settings.lastPosition > Duration.zero) {
         await _player.seek(settings.lastPosition);
+      } else {
+        await _player.seek(Duration.zero);
       }
 
       _activeBookmarkPath = activeBookmarkPath;
@@ -299,7 +308,10 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       originalQueue: queue,
       isShuffled: false,
     );
-    await loadTrack(queue[initialIndex]);
+    await loadTrack(
+      queue[initialIndex],
+      startFromBeginning: _startQueueFromBeginning,
+    );
     await play(); // Autoplay when loading a queue
   }
 
@@ -376,7 +388,10 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   Future<void> skipToQueueIndex(int index) async {
     if (index < 0 || index >= state.queue.length) return;
     state = state.copyWith(queueIndex: index);
-    await loadTrack(state.queue[index]);
+    await loadTrack(
+      state.queue[index],
+      startFromBeginning: _startQueueFromBeginning,
+    );
     await play();
   }
 
@@ -384,7 +399,10 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     if (state.hasNext) {
       final nextIndex = state.queueIndex + 1;
       state = state.copyWith(queueIndex: nextIndex);
-      await loadTrack(state.queue[nextIndex]);
+      await loadTrack(
+        state.queue[nextIndex],
+        startFromBeginning: _startQueueFromBeginning,
+      );
       await play(); // Autoplay next track
     }
   }
@@ -397,7 +415,10 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     } else if (state.hasPrevious) {
       final prevIndex = state.queueIndex - 1;
       state = state.copyWith(queueIndex: prevIndex);
-      await loadTrack(state.queue[prevIndex]);
+      await loadTrack(
+        state.queue[prevIndex],
+        startFromBeginning: _startQueueFromBeginning,
+      );
       await play(); // Autoplay previous track
     }
   }
@@ -705,7 +726,7 @@ final playerProvider = StateNotifierProvider<PlayerNotifier, PlayerState>((
   ref,
 ) {
   final player = ref.watch(audioPlayerProvider);
-  return PlayerNotifier(player);
+  return PlayerNotifier(player, ref);
 });
 
 // ── Track List Provider ──

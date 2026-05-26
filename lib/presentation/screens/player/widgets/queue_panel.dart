@@ -9,6 +9,8 @@ class QueuePanel extends StatelessWidget {
   final VoidCallback? onClose;
   final VoidCallback? onShuffleToggle;
   final VoidCallback? onClearQueue;
+  final bool startFromBeginning;
+  final VoidCallback? onStartFromBeginningToggle;
   final void Function(int index)? onTapTrack;
   final void Function(int index)? onRemoveTrack;
   final void Function(int oldIndex, int newIndex)? onReorder;
@@ -21,6 +23,8 @@ class QueuePanel extends StatelessWidget {
     this.onClose,
     this.onShuffleToggle,
     this.onClearQueue,
+    this.startFromBeginning = false,
+    this.onStartFromBeginningToggle,
     this.onTapTrack,
     this.onRemoveTrack,
     this.onReorder,
@@ -117,6 +121,30 @@ class QueuePanel extends StatelessWidget {
                           tooltip: isShuffled
                               ? 'Disable shuffle'
                               : 'Shuffle queue',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints.tightFor(
+                            width: 30,
+                            height: 30,
+                          ),
+                          splashRadius: 16,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      SizedBox(
+                        width: 30,
+                        height: 30,
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.restart_alt_rounded,
+                            color: startFromBeginning
+                                ? Theme.of(context).colorScheme.primary
+                                : context.colors.textMuted,
+                            size: 17,
+                          ),
+                          onPressed: onStartFromBeginningToggle,
+                          tooltip: startFromBeginning
+                              ? 'Start queue from beginning: on'
+                              : 'Start queue from beginning: off',
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints.tightFor(
                             width: 30,

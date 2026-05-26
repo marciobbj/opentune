@@ -101,6 +101,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final showAlbumArt = ref.watch(
       settingsProvider.select((s) => s.showAlbumArtInPlayer),
     );
+    final startQueueFromBeginning = ref.watch(
+      settingsProvider.select((s) => s.startQueueFromBeginning),
+    );
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -268,30 +271,65 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   width: 0.5,
                 ),
               ),
-              child: SwitchListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 8,
-                ),
-                secondary: Icon(
-                  Icons.album_rounded,
-                  color: Theme.of(context).iconTheme.color,
-                ),
-                title: const Text(
-                  'Album Art in Player',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                subtitle: Text(
-                  'Show the album cover behind the waveform',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                value: showAlbumArt,
-                activeThumbColor: Theme.of(context).colorScheme.primary,
-                onChanged: (value) {
-                  ref
-                      .read(settingsProvider.notifier)
-                      .setShowAlbumArtInPlayer(value);
-                },
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
+                    secondary: Icon(
+                      Icons.album_rounded,
+                      color: Theme.of(context).iconTheme.color,
+                    ),
+                    title: const Text(
+                      'Album Art in Player',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(
+                      'Show the album cover behind the waveform',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    value: showAlbumArt,
+                    activeThumbColor: Theme.of(context).colorScheme.primary,
+                    onChanged: (value) {
+                      ref
+                          .read(settingsProvider.notifier)
+                          .setShowAlbumArtInPlayer(value);
+                    },
+                  ),
+                  Divider(
+                    height: 1,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                  ),
+                  SwitchListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
+                    secondary: Icon(
+                      Icons.queue_music_rounded,
+                      color: Theme.of(context).iconTheme.color,
+                    ),
+                    title: const Text(
+                      'Start Queue From Beginning',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(
+                      'Starts every queued track from 00:00 instead of restoring the last saved position.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    value: startQueueFromBeginning,
+                    activeThumbColor: Theme.of(context).colorScheme.primary,
+                    onChanged: (value) {
+                      ref
+                          .read(settingsProvider.notifier)
+                          .setStartQueueFromBeginning(value);
+                    },
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 32),

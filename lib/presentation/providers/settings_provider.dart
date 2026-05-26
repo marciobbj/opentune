@@ -7,12 +7,14 @@ class SettingsState {
   final ThemeMode themeMode;
   final bool clearColor;
   final bool showAlbumArtInPlayer;
+  final bool startQueueFromBeginning;
 
   const SettingsState({
     this.customPrimaryColor,
     this.themeMode = ThemeMode.system,
     this.clearColor = false,
     this.showAlbumArtInPlayer = true,
+    this.startQueueFromBeginning = false,
   });
 
   SettingsState copyWith({
@@ -20,6 +22,7 @@ class SettingsState {
     ThemeMode? themeMode,
     bool clearColor = false,
     bool? showAlbumArtInPlayer,
+    bool? startQueueFromBeginning,
   }) {
     return SettingsState(
       customPrimaryColor: clearColor
@@ -27,6 +30,8 @@ class SettingsState {
           : (customPrimaryColor ?? this.customPrimaryColor),
       themeMode: themeMode ?? this.themeMode,
       showAlbumArtInPlayer: showAlbumArtInPlayer ?? this.showAlbumArtInPlayer,
+      startQueueFromBeginning:
+          startQueueFromBeginning ?? this.startQueueFromBeginning,
     );
   }
 }
@@ -35,6 +40,8 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   static const String _customPrimaryColorKey = 'custom_primary_color';
   static const String _themeModeKey = 'theme_mode';
   static const String _showAlbumArtInPlayerKey = 'show_album_art_in_player';
+  static const String _startQueueFromBeginningKey =
+      'start_queue_from_beginning';
 
   SettingsNotifier() : super(const SettingsState()) {
     _loadSettings();
@@ -63,10 +70,15 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     // Load showAlbumArtInPlayer
     final showAlbumArt = prefs.getBool(_showAlbumArtInPlayerKey) ?? true;
 
+    // Load queue playback preference
+    final startQueueFromBeginning =
+        prefs.getBool(_startQueueFromBeginningKey) ?? false;
+
     state = state.copyWith(
       customPrimaryColor: color,
       themeMode: mode,
       showAlbumArtInPlayer: showAlbumArt,
+      startQueueFromBeginning: startQueueFromBeginning,
     );
   }
 
@@ -92,6 +104,12 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_showAlbumArtInPlayerKey, value);
     state = state.copyWith(showAlbumArtInPlayer: value);
+  }
+
+  Future<void> setStartQueueFromBeginning(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_startQueueFromBeginningKey, value);
+    state = state.copyWith(startQueueFromBeginning: value);
   }
 }
 

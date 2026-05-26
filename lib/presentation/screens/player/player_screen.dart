@@ -167,6 +167,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     final showAlbumArt = ref.watch(
       settingsProvider.select((s) => s.showAlbumArtInPlayer),
     );
+    final startQueueFromBeginning = ref.watch(
+      settingsProvider.select((s) => s.startQueueFromBeginning),
+    );
 
     return Scaffold(
       backgroundColor: context.colors.bgDarkest,
@@ -520,6 +523,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                             onClose: _toggleQueuePanel,
                             onShuffleToggle: () => notifier.toggleShuffle(),
                             onClearQueue: () => notifier.clearQueue(),
+                            startFromBeginning: startQueueFromBeginning,
+                            onStartFromBeginningToggle: () => ref
+                                .read(settingsProvider.notifier)
+                                .setStartQueueFromBeginning(
+                                  !startQueueFromBeginning,
+                                ),
                             onTapTrack: (index) =>
                                 notifier.skipToQueueIndex(index),
                             onRemoveTrack: (index) =>
