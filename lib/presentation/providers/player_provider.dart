@@ -102,6 +102,7 @@ class PlayerState {
 // ── Player Notifier ──
 class PlayerNotifier extends StateNotifier<PlayerState> {
   static const String _lastTrackIdKey = 'last_played_track_id';
+  static const String _volumeKey = 'last_played_volume';
 
   final AudioPlayer _player;
   final Ref _ref;
@@ -113,7 +114,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   PlayerNotifier(this._player, this._ref) : super(const PlayerState()) {
     _player.setVolume(0.3);
     _listenToPlayer();
-    unawaited(_restoreLastSession());
+    unawaited(_restorePersistentPlayerState());
   }
 
   bool _isStaleLoad(int loadId) => loadId != _loadGeneration;
@@ -138,8 +139,15 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     });
   }
 
-  Future<void> _restoreLastSession() async {
+  Future<void> _restorePersistentPlayerState() async {
     final prefs = await SharedPreferences.getInstance();
+
+    final savedVolume = prefs.getDouble(_volumeKey);
+    if (savedVolume != null) {
+      final clampedVolume = savedVolume.clamp(0.0, 1.0).toDouble();
+      await _player.setVolume(clampedVolume);
+    }
+
     final lastTrackId = prefs.getInt(_lastTrackIdKey);
     if (lastTrackId == null) return;
 
@@ -587,6 +595,9 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     final clamped = volume.clamp(0.0, 1.0);
     await _player.setVolume(clamped);
     state = state.copyWith(volume: clamped);
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_volumeKey, clamped);
   }
 
   // ── Loop ──
@@ -744,6 +755,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_lastTrackIdKey, currentTrack!.id!);
+    await prefs.setDouble(_volumeKey, state.volume);
   }
 
   @override
