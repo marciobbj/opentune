@@ -5,6 +5,7 @@ import 'dart:math' show Random;
 import 'dart:ui';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../domain/entities/track.dart';
 import '../../domain/entities/track_settings.dart';
 import '../../domain/entities/section.dart';
@@ -100,15 +101,19 @@ class PlayerState {
 
 // ── Player Notifier ──
 class PlayerNotifier extends StateNotifier<PlayerState> {
+  static const String _lastTrackIdKey = 'last_played_track_id';
+
   final AudioPlayer _player;
   final Ref _ref;
   final List<StreamSubscription> _subscriptions = [];
+  Timer? _persistTimer;
   int _loadGeneration = 0;
   String? _activeBookmarkPath;
 
   PlayerNotifier(this._player, this._ref) : super(const PlayerState()) {
     _player.setVolume(0.3);
     _listenToPlayer();
+    unawaited(_restoreLastSession());
   }
 
   bool _isStaleLoad(int loadId) => loadId != _loadGeneration;
@@ -124,11 +129,35 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     }
   }
 
+  void _scheduleStateSave() {
+    _persistTimer?.cancel();
+    if (state.currentTrack == null) return;
+
+    _persistTimer = Timer(const Duration(seconds: 2), () {
+      unawaited(_saveCurrentState());
+    });
+  }
+
+  Future<void> _restoreLastSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastTrackId = prefs.getInt(_lastTrackIdKey);
+    if (lastTrackId == null) return;
+
+    final track = await LocalDatabase.getTrackById(lastTrackId);
+    if (track == null) {
+      await prefs.remove(_lastTrackIdKey);
+      return;
+    }
+
+    await loadTrack(track);
+  }
+
   void _listenToPlayer() {
     _subscriptions.add(
       _player.positionStream.listen((pos) {
         state = state.copyWith(position: pos);
         _checkLoopBoundary(pos);
+        _scheduleStateSave();
       }),
     );
 
@@ -199,6 +228,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     bool startFromBeginning = false,
   }) async {
     final loadId = ++_loadGeneration;
+    _persistTimer?.cancel();
     state = state.copyWith(
       isLoading: true,
       currentTrack: track,
@@ -282,6 +312,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         isLoading: false,
         duration: _player.duration ?? Duration.zero,
       );
+
+      await _saveCurrentState();
 
       // Extract waveform asynchronously
       WaveformExtractor.extract(activeTrack.filePath)
@@ -485,6 +517,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
   Future<void> seek(Duration position) async {
     await _player.seek(position);
+    _scheduleStateSave();
   }
 
   Future<void> seekToProgress(double progress) async {
@@ -704,14 +737,19 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   // ── Persistence ──
 
   Future<void> _saveCurrentState() async {
-    if (state.currentTrack == null) return;
+    final currentTrack = state.currentTrack;
+    if (currentTrack?.id == null) return;
     final settings = state.settings.copyWith(lastPosition: state.position);
     await LocalDatabase.upsertTrackSettings(settings);
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_lastTrackIdKey, currentTrack!.id!);
   }
 
   @override
   void dispose() {
     _loadGeneration++;
+    _persistTimer?.cancel();
     unawaited(_releaseActiveBookmark());
     _saveCurrentState();
     for (final sub in _subscriptions) {
