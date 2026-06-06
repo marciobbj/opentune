@@ -2,15 +2,62 @@ name: Multi-Platform Build
 on:
   push:
     branches: ["main"]
-    tags:
-      - 'v*' # Executa apenas em tags de versão para evitar releases em cada commit
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
+  prepare_release:
+    name: Prepare release tag
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read pubspec version
+        id: version
+        shell: bash
+        run: |
+          version="$(awk '/^version:/ {print $2; exit}' pubspec.yaml)"
+          if [ -z "$version" ]; then
+            echo "::error::Could not find version in pubspec.yaml"
+            exit 1
+          fi
+
+          tag="v$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Create release tag
+        shell: bash
+        run: |
+          tag="${{ steps.version.outputs.tag }}"
+          current_sha="$(git rev-parse HEAD)"
+
+          if git rev-parse "$tag" >/dev/null 2>&1; then
+            tag_sha="$(git rev-list -n 1 "$tag")"
+            if [ "$tag_sha" != "$current_sha" ]; then
+              echo "::error::Tag $tag already exists on another commit. Update version in pubspec.yaml."
+              exit 1
+            fi
+
+            echo "Tag $tag already exists on this commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" -m "Release ${{ steps.version.outputs.version }}"
+          git push origin "$tag"
+
   build:
     name: Build for ${{ matrix.target }}
+    needs: prepare_release
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -77,4 +124,5 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true
           replacesArtifacts: false
-          tag: ${{ github.ref_name }}
+          tag: ${{ needs.prepare_release.outputs.tag }}
+          name: ${{ needs.prepare_release.outputs.version }}
