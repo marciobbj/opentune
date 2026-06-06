@@ -245,6 +245,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                               onSectionUpdated: (section) =>
                                   notifier.updateSection(section),
                               onSectionDragging: _onSectionDragging,
+                              onLoopUpdated: (start, end) =>
+                                  notifier.setCustomLoop(start, end),
                               draggingSection: _draggingSection,
                             ),
                           ),

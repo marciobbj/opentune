@@ -19,6 +19,21 @@ class _SectionDragState {
   });
 }
 
+// ── Drag state for loop handle dragging ──
+class _LoopDragState {
+  final bool isDragStart; // true = dragging A handle, false = B handle
+  final Duration originalStart;
+  final Duration originalEnd;
+  Duration currentTime;
+
+  _LoopDragState({
+    required this.isDragStart,
+    required this.originalStart,
+    required this.originalEnd,
+    required this.currentTime,
+  });
+}
+
 class WaveformPainter extends CustomPainter {
   final List<double> waveformData;
   final double progress;
@@ -36,6 +51,8 @@ class WaveformPainter extends CustomPainter {
   final int? draggingSectionId;
   final Duration? dragStartOverride;
   final Duration? dragEndOverride;
+  final Duration? loopDragStartOverride;
+  final Duration? loopDragEndOverride;
 
   WaveformPainter({
     required this.waveformData,
@@ -53,6 +70,8 @@ class WaveformPainter extends CustomPainter {
     this.draggingSectionId,
     this.dragStartOverride,
     this.dragEndOverride,
+    this.loopDragStartOverride,
+    this.loopDragEndOverride,
   });
 
   @override
@@ -90,6 +109,10 @@ class WaveformPainter extends CustomPainter {
     }
     return section.endTime;
   }
+
+  Duration? get _effectiveLoopStart => loopDragStartOverride ?? loopStart;
+
+  Duration? get _effectiveLoopEnd => loopDragEndOverride ?? loopEnd;
 
   double _timeToX(Duration time, double width) {
     return (time.inMilliseconds / duration.inMilliseconds) * width;
@@ -304,15 +327,20 @@ class WaveformPainter extends CustomPainter {
   }
 
   void _drawLoopRegion(Canvas canvas, Size size) {
+    final effectiveStart = _effectiveLoopStart!;
+    final effectiveEnd = _effectiveLoopEnd!;
     final startX =
-        (loopStart!.inMilliseconds / duration.inMilliseconds) * size.width;
+        (effectiveStart.inMilliseconds / duration.inMilliseconds) * size.width;
     final endX =
-        (loopEnd!.inMilliseconds / duration.inMilliseconds) * size.width;
+        (effectiveEnd.inMilliseconds / duration.inMilliseconds) * size.width;
+    final isDragging =
+        loopDragStartOverride != null || loopDragEndOverride != null;
+    final loopColor = loopEnabled ? primaryColor : mutedColor;
 
     // Loop region background
     final bgPaint = Paint()
       ..color = loopEnabled
-          ? primaryColor.withValues(alpha: 0.08)
+          ? primaryColor.withValues(alpha: isDragging ? 0.14 : 0.08)
           : mutedColor.withValues(alpha: 0.05)
       ..style = PaintingStyle.fill;
 
@@ -320,26 +348,32 @@ class WaveformPainter extends CustomPainter {
 
     // Loop boundary lines
     final linePaint = Paint()
-      ..color = loopEnabled ? primaryColor : mutedColor
-      ..strokeWidth = 2.0
+      ..color = loopColor
+      ..strokeWidth = isDragging ? 2.5 : 2.0
       ..style = PaintingStyle.stroke;
 
     canvas.drawLine(Offset(startX, 0), Offset(startX, size.height), linePaint);
     canvas.drawLine(Offset(endX, 0), Offset(endX, size.height), linePaint);
 
-    // Draw A/B labels
-    _drawMarkerLabel(
+    // Draw drag handles on both boundaries, matching section handles.
+    _drawHandle(
       canvas,
       startX,
-      'A',
-      loopEnabled ? primaryColor : mutedColor,
+      size.height,
+      loopColor,
+      loopDragStartOverride != null,
     );
-    _drawMarkerLabel(
+    _drawHandle(
       canvas,
       endX,
-      'B',
-      loopEnabled ? primaryColor : mutedColor,
+      size.height,
+      loopColor,
+      loopDragEndOverride != null,
     );
+
+    // Draw A/B labels
+    _drawMarkerLabel(canvas, startX, 'A', loopColor);
+    _drawMarkerLabel(canvas, endX, 'B', loopColor);
   }
 
   void _drawMarkerLabel(Canvas canvas, double x, String label, Color color) {
@@ -453,7 +487,9 @@ class WaveformPainter extends CustomPainter {
         old.loopEnabled != loopEnabled ||
         old.draggingSectionId != draggingSectionId ||
         old.dragStartOverride != dragStartOverride ||
-        old.dragEndOverride != dragEndOverride;
+        old.dragEndOverride != dragEndOverride ||
+        old.loopDragStartOverride != loopDragStartOverride ||
+        old.loopDragEndOverride != loopDragEndOverride;
   }
 }
 
@@ -469,6 +505,7 @@ class WaveformView extends StatefulWidget {
   final ValueChanged<double>? onSeek;
   final ValueChanged<Section>? onSectionUpdated;
   final ValueChanged<Section?>? onSectionDragging;
+  final void Function(Duration start, Duration end)? onLoopUpdated;
   final Section? draggingSection;
   final String? albumArtPath;
 
@@ -485,6 +522,7 @@ class WaveformView extends StatefulWidget {
     this.onSeek,
     this.onSectionUpdated,
     this.onSectionDragging,
+    this.onLoopUpdated,
     this.draggingSection,
     this.albumArtPath,
   });
@@ -497,10 +535,12 @@ class _WaveformViewState extends State<WaveformView>
     with SingleTickerProviderStateMixin {
   late AnimationController _glowController;
   _SectionDragState? _dragState;
+  _LoopDragState? _loopDragState;
   bool _albumArtExists = false;
 
   static const double _handleHitRadius = 18.0;
   static const int _minSectionMs = 1000; // 1 second minimum
+  static const int _minLoopMs = 1000; // 1 second minimum
 
   @override
   void initState() {
@@ -531,7 +571,39 @@ class _WaveformViewState extends State<WaveformView>
     super.dispose();
   }
 
-  // ── Hit testing: find if touch is near a section handle ──
+  // ── Hit testing: find if touch is near a range handle ──
+
+  /// Returns a drag state if the position hits a loop handle, null otherwise.
+  _LoopDragState? _hitTestLoopHandle(Offset localPos, double width) {
+    if (widget.duration <= Duration.zero ||
+        widget.loopStart == null ||
+        widget.loopEnd == null) {
+      return null;
+    }
+
+    final totalMs = widget.duration.inMilliseconds.toDouble();
+    final startX = (widget.loopStart!.inMilliseconds / totalMs) * width;
+    final endX = (widget.loopEnd!.inMilliseconds / totalMs) * width;
+
+    // Check B first so it wins when A/B are close together.
+    if ((localPos.dx - endX).abs() <= _handleHitRadius) {
+      return _LoopDragState(
+        isDragStart: false,
+        originalStart: widget.loopStart!,
+        originalEnd: widget.loopEnd!,
+        currentTime: widget.loopEnd!,
+      );
+    }
+    if ((localPos.dx - startX).abs() <= _handleHitRadius) {
+      return _LoopDragState(
+        isDragStart: true,
+        originalStart: widget.loopStart!,
+        originalEnd: widget.loopEnd!,
+        currentTime: widget.loopStart!,
+      );
+    }
+    return null;
+  }
 
   /// Returns a drag state if the position hits a section handle, null otherwise.
   _SectionDragState? _hitTestHandle(Offset localPos, double width) {
@@ -570,6 +642,15 @@ class _WaveformViewState extends State<WaveformView>
   // ── Gesture handlers ──
 
   void _handlePanStart(DragStartDetails details, BoxConstraints constraints) {
+    final loopHit = _hitTestLoopHandle(
+      details.localPosition,
+      constraints.maxWidth,
+    );
+    if (loopHit != null && widget.onLoopUpdated != null) {
+      setState(() => _loopDragState = loopHit);
+      return;
+    }
+
     final hit = _hitTestHandle(details.localPosition, constraints.maxWidth);
     if (hit != null && widget.onSectionUpdated != null) {
       setState(() => _dragState = hit);
@@ -577,7 +658,16 @@ class _WaveformViewState extends State<WaveformView>
   }
 
   void _handlePanUpdate(DragUpdateDetails details, BoxConstraints constraints) {
-    if (_dragState != null) {
+    if (_loopDragState != null) {
+      // Dragging a loop handle
+      final time = _xToTime(
+        details.localPosition.dx.clamp(0, constraints.maxWidth),
+        constraints.maxWidth,
+      );
+      setState(() {
+        _loopDragState!.currentTime = _clampLoopDragTime(time);
+      });
+    } else if (_dragState != null) {
       // Dragging a section handle
       final time = _xToTime(
         details.localPosition.dx.clamp(0, constraints.maxWidth),
@@ -601,7 +691,9 @@ class _WaveformViewState extends State<WaveformView>
   }
 
   void _handlePanEnd(DragEndDetails details) {
-    if (_dragState != null) {
+    if (_loopDragState != null) {
+      _commitLoopDrag();
+    } else if (_dragState != null) {
       _commitDrag();
     }
   }
@@ -609,6 +701,11 @@ class _WaveformViewState extends State<WaveformView>
   void _handleTap(TapUpDetails details, BoxConstraints constraints) {
     // Only seek if not near a handle (handles are for dragging)
     if (widget.onSeek == null) return;
+    final loopHit = _hitTestLoopHandle(
+      details.localPosition,
+      constraints.maxWidth,
+    );
+    if (loopHit != null) return; // Don't seek when tapping on a loop handle
     final hit = _hitTestHandle(details.localPosition, constraints.maxWidth);
     if (hit != null) return; // Don't seek when tapping on a handle
     final progress = details.localPosition.dx / constraints.maxWidth;
@@ -635,6 +732,31 @@ class _WaveformViewState extends State<WaveformView>
     }
   }
 
+  /// Clamp the drag time to enforce minimum loop duration
+  Duration _clampLoopDragTime(Duration time) {
+    final ds = _loopDragState!;
+    if (ds.isDragStart) {
+      final maxTime = ds.originalEnd - const Duration(milliseconds: _minLoopMs);
+      if (time > maxTime) return maxTime;
+      if (time < Duration.zero) return Duration.zero;
+      return time;
+    } else {
+      final minTime =
+          ds.originalStart + const Duration(milliseconds: _minLoopMs);
+      if (time < minTime) return minTime;
+      if (time > widget.duration) return widget.duration;
+      return time;
+    }
+  }
+
+  void _commitLoopDrag() {
+    final ds = _loopDragState!;
+    final updatedStart = ds.isDragStart ? ds.currentTime : ds.originalStart;
+    final updatedEnd = ds.isDragStart ? ds.originalEnd : ds.currentTime;
+    widget.onLoopUpdated?.call(updatedStart, updatedEnd);
+    setState(() => _loopDragState = null);
+  }
+
   void _commitDrag() {
     final ds = _dragState!;
     final updated = ds.isDragStart
@@ -651,6 +773,18 @@ class _WaveformViewState extends State<WaveformView>
     int? draggingSectionId;
     Duration? dragStartOverride;
     Duration? dragEndOverride;
+    Duration? loopDragStartOverride;
+    Duration? loopDragEndOverride;
+
+    if (_loopDragState != null) {
+      if (_loopDragState!.isDragStart) {
+        loopDragStartOverride = _loopDragState!.currentTime;
+        loopDragEndOverride = _loopDragState!.originalEnd;
+      } else {
+        loopDragStartOverride = _loopDragState!.originalStart;
+        loopDragEndOverride = _loopDragState!.currentTime;
+      }
+    }
 
     if (_dragState != null) {
       // Local drag (user dragging waveform handles)
@@ -732,6 +866,8 @@ class _WaveformViewState extends State<WaveformView>
                       draggingSectionId: draggingSectionId,
                       dragStartOverride: dragStartOverride,
                       dragEndOverride: dragEndOverride,
+                      loopDragStartOverride: loopDragStartOverride,
+                      loopDragEndOverride: loopDragEndOverride,
                     ),
                     size: Size(constraints.maxWidth, constraints.maxHeight),
                   ),

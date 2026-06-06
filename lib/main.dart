@@ -8,6 +8,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:window_manager/window_manager.dart';
 import 'app.dart';
+import 'core/utils/single_instance_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,6 +42,12 @@ void main() async {
 
   // Initialize window manager for desktop (custom titlebar)
   if (!kIsWeb && (Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
+    final isFirstInstance = await singleInstanceService.acquire();
+    if (!isFirstInstance) {
+      await singleInstanceService.requestExistingInstanceToShow();
+      return;
+    }
+
     await windowManager.ensureInitialized();
     final windowOptions = WindowOptions(
       size: Size(1280, 720),
@@ -54,6 +61,13 @@ void main() async {
       await windowManager.focus();
     });
   }
+
+  singleInstanceService.setOnShowRequested(() async {
+    await windowManager.show();
+    await windowManager.restore();
+    await windowManager.focus();
+  });
+  singleInstanceService.markWindowReady();
 
   runApp(const ProviderScope(child: OpenTuneApp()));
 }
