@@ -809,153 +809,33 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
         // Search + Sort controls
         if (_allTracks.isNotEmpty)
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _LibraryStickyHeaderDelegate(
+              height: 60,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: context.colors.bgDarkest,
+                  border: Border(
+                    bottom: BorderSide(
+                      color: context.colors.surfaceBorder.withValues(
+                        alpha: 0.12,
+                      ),
+                    ),
+                  ),
+                ),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                alignment: Alignment.bottomCenter,
+                child: _buildTrackSearchField(),
+              ),
+            ),
+          ),
+
+        if (_allTracks.isNotEmpty)
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-              child: Column(
-                children: [
-                  // Search field
-                  TextField(
-                    controller: _searchController,
-                    style: TextStyle(
-                      color: context.colors.textPrimary,
-                      fontSize: 14,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'Search by title, artist, album...',
-                      hintStyle: TextStyle(
-                        color: context.colors.textMuted.withValues(alpha: 0.5),
-                      ),
-                      prefixIcon: Icon(
-                        Icons.search_rounded,
-                        color: context.colors.textMuted,
-                        size: 20,
-                      ),
-                      suffixIcon: _searchQuery.isNotEmpty
-                          ? GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _searchController.clear();
-                                  _searchQuery = '';
-                                });
-                              },
-                              child: Icon(
-                                Icons.close_rounded,
-                                color: context.colors.textMuted,
-                                size: 18,
-                              ),
-                            )
-                          : null,
-                      filled: true,
-                      fillColor: context.colors.bgDark,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                    onChanged: (query) {
-                      setState(() => _searchQuery = query);
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  // Sort controls
-                  Row(
-                    children: [
-                      Expanded(
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: TrackSortField.values.map((field) {
-                              final selected = _sortField == field;
-                              final label = switch (field) {
-                                TrackSortField.dateAdded => 'Date Added',
-                                TrackSortField.title => 'Title',
-                                TrackSortField.artist => 'Artist',
-                                TrackSortField.album => 'Album',
-                              };
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 6),
-                                child: ChoiceChip(
-                                  selected: selected,
-                                  label: Text(
-                                    label,
-                                    style: TextStyle(
-                                      color: selected
-                                          ? context.colors.bgDarkest
-                                          : context.colors.textSecondary,
-                                      fontSize: 12,
-                                      fontWeight: selected
-                                          ? FontWeight.w600
-                                          : FontWeight.w400,
-                                    ),
-                                  ),
-                                  selectedColor: Theme.of(
-                                    context,
-                                  ).colorScheme.primary,
-                                  backgroundColor: context.colors.bgDark,
-                                  side: BorderSide(
-                                    color: selected
-                                        ? Theme.of(context).colorScheme.primary
-                                        : context.colors.surfaceBorder
-                                              .withValues(alpha: 0.3),
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  showCheckmark: false,
-                                  visualDensity: VisualDensity.compact,
-                                  onSelected: (_) {
-                                    setState(() {
-                                      if (_sortField == field) {
-                                        _sortAscending = !_sortAscending;
-                                      } else {
-                                        _sortField = field;
-                                        _sortAscending =
-                                            field == TrackSortField.title ||
-                                            field == TrackSortField.artist ||
-                                            field == TrackSortField.album;
-                                      }
-                                    });
-                                  },
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      GestureDetector(
-                        onTap: () {
-                          setState(() => _sortAscending = !_sortAscending);
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: context.colors.bgDark,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: context.colors.surfaceBorder.withValues(
-                                alpha: 0.3,
-                              ),
-                            ),
-                          ),
-                          child: Icon(
-                            _sortAscending
-                                ? Icons.arrow_upward_rounded
-                                : Icons.arrow_downward_rounded,
-                            color: context.colors.textSecondary,
-                            size: 18,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+              padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
+              child: _buildSortControls(),
             ),
           ),
 
@@ -1008,6 +888,144 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               }, childCount: _filteredTracks.length),
             ),
           ),
+      ],
+    );
+  }
+
+  Widget _buildTrackSearchField() {
+    return SizedBox(
+      height: 48,
+      child: TextField(
+        controller: _searchController,
+        style: TextStyle(color: context.colors.textPrimary, fontSize: 14),
+        decoration: InputDecoration(
+          hintText: 'Search by title, artist, album...',
+          hintStyle: TextStyle(
+            color: context.colors.textMuted.withValues(alpha: 0.5),
+          ),
+          prefixIcon: Icon(
+            Icons.search_rounded,
+            color: context.colors.textMuted,
+            size: 20,
+          ),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _searchController.clear();
+                      _searchQuery = '';
+                    });
+                  },
+                  child: Icon(
+                    Icons.close_rounded,
+                    color: context.colors.textMuted,
+                    size: 18,
+                  ),
+                )
+              : null,
+          filled: true,
+          fillColor: context.colors.bgDark,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 10,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide.none,
+          ),
+        ),
+        onChanged: (query) {
+          setState(() => _searchQuery = query);
+        },
+      ),
+    );
+  }
+
+  Widget _buildSortControls() {
+    return Row(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: TrackSortField.values.map((field) {
+                final selected = _sortField == field;
+                final label = switch (field) {
+                  TrackSortField.dateAdded => 'Date Added',
+                  TrackSortField.title => 'Title',
+                  TrackSortField.artist => 'Artist',
+                  TrackSortField.album => 'Album',
+                };
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ChoiceChip(
+                    selected: selected,
+                    label: Text(
+                      label,
+                      style: TextStyle(
+                        color: selected
+                            ? context.colors.bgDarkest
+                            : context.colors.textSecondary,
+                        fontSize: 12,
+                        fontWeight: selected
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                      ),
+                    ),
+                    selectedColor: Theme.of(context).colorScheme.primary,
+                    backgroundColor: context.colors.bgDark,
+                    side: BorderSide(
+                      color: selected
+                          ? Theme.of(context).colorScheme.primary
+                          : context.colors.surfaceBorder.withValues(alpha: 0.3),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    showCheckmark: false,
+                    visualDensity: VisualDensity.compact,
+                    onSelected: (_) {
+                      setState(() {
+                        if (_sortField == field) {
+                          _sortAscending = !_sortAscending;
+                        } else {
+                          _sortField = field;
+                          _sortAscending =
+                              field == TrackSortField.title ||
+                              field == TrackSortField.artist ||
+                              field == TrackSortField.album;
+                        }
+                      });
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+        const SizedBox(width: 4),
+        GestureDetector(
+          onTap: () {
+            setState(() => _sortAscending = !_sortAscending);
+          },
+          child: Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: context.colors.bgDark,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: context.colors.surfaceBorder.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Icon(
+              _sortAscending
+                  ? Icons.arrow_upward_rounded
+                  : Icons.arrow_downward_rounded,
+              color: context.colors.textSecondary,
+              size: 18,
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -2311,6 +2329,36 @@ class _TrackTile extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _LibraryStickyHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final double height;
+  final Widget child;
+
+  const _LibraryStickyHeaderDelegate({
+    required this.height,
+    required this.child,
+  });
+
+  @override
+  double get minExtent => height;
+
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return child;
+  }
+
+  @override
+  bool shouldRebuild(covariant _LibraryStickyHeaderDelegate oldDelegate) {
+    return height != oldDelegate.height || child != oldDelegate.child;
   }
 }
 
