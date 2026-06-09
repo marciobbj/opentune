@@ -1,7 +1,7 @@
 name: opentune
 description: "OpenTune - The Music Disassembler"
 publish_to: 'none'
-version: 0.5.2
+version: 0.5.3
 
 environment:
   sdk: ^3.10.1
