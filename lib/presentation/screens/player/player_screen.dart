@@ -237,6 +237,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                               loopStart: state.settings.loopStart,
                               loopEnd: state.settings.loopEnd,
                               loopEnabled: state.settings.loopEnabled,
+                              loopBoundSectionId:
+                                  notifier.findSectionBoundToLoop()?.id,
                               albumArtPath: showAlbumArt
                                   ? state.currentTrack?.albumArtPath
                                   : null,
@@ -247,6 +249,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                               onSectionDragging: _onSectionDragging,
                               onLoopUpdated: (start, end) =>
                                   notifier.setCustomLoop(start, end),
+                              onLoopBoundUpdated: (start, end) =>
+                                  notifier.updateLoopBoundToSection(start, end),
                               draggingSection: _draggingSection,
                             ),
                           ),

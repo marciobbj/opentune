@@ -677,6 +677,53 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     _saveCurrentState();
   }
 
+  /// Find the section whose bounds exactly match the current loop bounds.
+  /// Returns null if no section matches (custom loop or full-track loop).
+  Section? findSectionBoundToLoop() {
+    if (!state.settings.loopEnabled || !state.settings.hasLoop) return null;
+    final loopStart = state.settings.loopStart!;
+    final loopEnd = state.settings.loopEnd!;
+    for (final section in state.sections) {
+      if (section.startTime == loopStart && section.endTime == loopEnd) {
+        return section;
+      }
+    }
+    return null;
+  }
+
+  /// Update both loop bounds AND the bound section simultaneously.
+  /// Used when dragging loop handles while bound to a section.
+  Future<void> updateLoopBoundToSection(Duration start, Duration end) async {
+    final boundSection = findSectionBoundToLoop();
+    // Update loop bounds
+    state = state.copyWith(
+      settings: state.settings.copyWith(
+        loopStart: start,
+        loopEnd: end,
+        loopEnabled: true,
+      ),
+    );
+    // If bound to a section, update that section too
+    if (boundSection != null) {
+      final updated = boundSection.copyWith(
+        startTime: start,
+        endTime: end,
+      );
+      await LocalDatabase.updateSection(updated);
+      await _reloadSections();
+    }
+    _saveCurrentState();
+  }
+
+  /// Seek to the start of the section currently bound to the loop.
+  /// Does nothing if loop is off or not bound to a section.
+  Future<void> seekToLoopSectionStart() async {
+    final boundSection = findSectionBoundToLoop();
+    if (boundSection == null) return;
+    await seek(state.settings.loopStart!);
+    await play();
+  }
+
   void clearLoop() {
     state = state.copyWith(
       settings: state.settings.copyWith(clearLoop: true, loopEnabled: false),

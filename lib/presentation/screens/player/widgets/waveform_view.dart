@@ -506,6 +506,9 @@ class WaveformView extends StatefulWidget {
   final ValueChanged<Section>? onSectionUpdated;
   final ValueChanged<Section?>? onSectionDragging;
   final void Function(Duration start, Duration end)? onLoopUpdated;
+  /// When set, dragging loop or section handles of this section moves both together.
+  final void Function(Duration start, Duration end)? onLoopBoundUpdated;
+  final int? loopBoundSectionId;
   final Section? draggingSection;
   final String? albumArtPath;
 
@@ -523,6 +526,8 @@ class WaveformView extends StatefulWidget {
     this.onSectionUpdated,
     this.onSectionDragging,
     this.onLoopUpdated,
+    this.onLoopBoundUpdated,
+    this.loopBoundSectionId,
     this.draggingSection,
     this.albumArtPath,
   });
@@ -537,8 +542,10 @@ class _WaveformViewState extends State<WaveformView>
   _SectionDragState? _dragState;
   _LoopDragState? _loopDragState;
   bool _albumArtExists = false;
+  bool _isPlayheadDrag = false;
 
   static const double _handleHitRadius = 18.0;
+  static const double _playheadHitRadius = 12.0;
   static const int _minSectionMs = 1000; // 1 second minimum
   static const int _minLoopMs = 1000; // 1 second minimum
 
@@ -572,6 +579,13 @@ class _WaveformViewState extends State<WaveformView>
   }
 
   // ── Hit testing: find if touch is near a range handle ──
+
+  /// Returns true if the touch is near the playhead cursor.
+  bool _hitTestPlayhead(Offset localPos, double width) {
+    if (widget.duration <= Duration.zero) return false;
+    final cursorX = widget.progress * width;
+    return (localPos.dx - cursorX).abs() <= _playheadHitRadius;
+  }
 
   /// Returns a drag state if the position hits a loop handle, null otherwise.
   _LoopDragState? _hitTestLoopHandle(Offset localPos, double width) {
@@ -642,24 +656,91 @@ class _WaveformViewState extends State<WaveformView>
   // ── Gesture handlers ──
 
   void _handlePanStart(DragStartDetails details, BoxConstraints constraints) {
+    // 1. Playhead has highest priority — always draggable
+    if (_hitTestPlayhead(details.localPosition, constraints.maxWidth)) {
+      setState(() => _isPlayheadDrag = true);
+      return;
+    }
+
+    // 2. Loop handles
     final loopHit = _hitTestLoopHandle(
       details.localPosition,
       constraints.maxWidth,
     );
-    if (loopHit != null && widget.onLoopUpdated != null) {
+    if (loopHit != null && (widget.onLoopUpdated != null || widget.onLoopBoundUpdated != null)) {
+      // If loop is bound to a section, also start a section drag for visual sync
+      if (widget.loopBoundSectionId != null) {
+        final boundSection = widget.sections
+            .where((s) => s.id == widget.loopBoundSectionId)
+            .firstOrNull;
+        if (boundSection != null) {
+          setState(() {
+            _loopDragState = loopHit;
+            _dragState = _SectionDragState(
+              section: boundSection,
+              isDragStart: loopHit.isDragStart,
+              currentTime: loopHit.isDragStart
+                  ? boundSection.startTime
+                  : boundSection.endTime,
+            );
+          });
+          return;
+        }
+      }
       setState(() => _loopDragState = loopHit);
       return;
     }
 
+    // 3. Section handles
     final hit = _hitTestHandle(details.localPosition, constraints.maxWidth);
     if (hit != null && widget.onSectionUpdated != null) {
-      setState(() => _dragState = hit);
+      // If this section is bound to the loop, also start a loop drag for visual sync
+      if (widget.loopBoundSectionId != null &&
+          hit.section.id == widget.loopBoundSectionId &&
+          widget.loopStart != null &&
+          widget.loopEnd != null) {
+        setState(() {
+          _dragState = hit;
+          _loopDragState = _LoopDragState(
+            isDragStart: hit.isDragStart,
+            originalStart: widget.loopStart!,
+            originalEnd: widget.loopEnd!,
+            currentTime: hit.isDragStart
+                ? widget.loopStart!
+                : widget.loopEnd!,
+          );
+        });
+      } else {
+        setState(() => _dragState = hit);
+      }
     }
   }
 
   void _handlePanUpdate(DragUpdateDetails details, BoxConstraints constraints) {
-    if (_loopDragState != null) {
-      // Dragging a loop handle
+    if (_isPlayheadDrag) {
+      // Dragging the playhead — seek directly
+      if (widget.onSeek == null) return;
+      final progress = details.localPosition.dx / constraints.maxWidth;
+      widget.onSeek!(progress.clamp(0.0, 1.0));
+    } else if (_loopDragState != null && _dragState != null) {
+      // Bound drag: loop + section move together
+      final time = _xToTime(
+        details.localPosition.dx.clamp(0, constraints.maxWidth),
+        constraints.maxWidth,
+      );
+      final clampedLoopTime = _clampLoopDragTime(time);
+      setState(() {
+        _loopDragState!.currentTime = clampedLoopTime;
+        _dragState!.currentTime = clampedLoopTime;
+      });
+      // Notify parent of live drag position
+      final ds = _dragState!;
+      final transient = ds.isDragStart
+          ? ds.section.copyWith(startTime: ds.currentTime)
+          : ds.section.copyWith(endTime: ds.currentTime);
+      widget.onSectionDragging?.call(transient);
+    } else if (_loopDragState != null) {
+      // Dragging a loop handle only
       final time = _xToTime(
         details.localPosition.dx.clamp(0, constraints.maxWidth),
         constraints.maxWidth,
@@ -668,7 +749,7 @@ class _WaveformViewState extends State<WaveformView>
         _loopDragState!.currentTime = _clampLoopDragTime(time);
       });
     } else if (_dragState != null) {
-      // Dragging a section handle
+      // Dragging a section handle only
       final time = _xToTime(
         details.localPosition.dx.clamp(0, constraints.maxWidth),
         constraints.maxWidth,
@@ -691,7 +772,12 @@ class _WaveformViewState extends State<WaveformView>
   }
 
   void _handlePanEnd(DragEndDetails details) {
-    if (_loopDragState != null) {
+    if (_isPlayheadDrag) {
+      setState(() => _isPlayheadDrag = false);
+    } else if (_loopDragState != null && _dragState != null) {
+      // Bound drag — commit both together
+      _commitBoundDrag();
+    } else if (_loopDragState != null) {
       _commitLoopDrag();
     } else if (_dragState != null) {
       _commitDrag();
@@ -699,8 +785,9 @@ class _WaveformViewState extends State<WaveformView>
   }
 
   void _handleTap(TapUpDetails details, BoxConstraints constraints) {
-    // Only seek if not near a handle (handles are for dragging)
+    // Only seek if not near a handle or playhead (handles are for dragging)
     if (widget.onSeek == null) return;
+    // Playhead tap = seek (allow it, no need to block)
     final loopHit = _hitTestLoopHandle(
       details.localPosition,
       constraints.maxWidth,
@@ -755,6 +842,24 @@ class _WaveformViewState extends State<WaveformView>
     final updatedEnd = ds.isDragStart ? ds.originalEnd : ds.currentTime;
     widget.onLoopUpdated?.call(updatedStart, updatedEnd);
     setState(() => _loopDragState = null);
+  }
+
+  /// Commit a bound drag where both loop and section were being dragged together.
+  void _commitBoundDrag() {
+    final lds = _loopDragState!;
+    final updatedStart = lds.isDragStart ? lds.currentTime : lds.originalStart;
+    final updatedEnd = lds.isDragStart ? lds.originalEnd : lds.currentTime;
+    // Use the bound callback to sync both section and loop
+    if (widget.onLoopBoundUpdated != null) {
+      widget.onLoopBoundUpdated!(updatedStart, updatedEnd);
+    } else {
+      widget.onLoopUpdated?.call(updatedStart, updatedEnd);
+    }
+    widget.onSectionDragging?.call(null);
+    setState(() {
+      _loopDragState = null;
+      _dragState = null;
+    });
   }
 
   void _commitDrag() {
