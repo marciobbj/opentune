@@ -24,6 +24,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   final _screens = const [LibraryScreen(), PlayerScreen(), SettingsScreen()];
 
   late final bool _isDesktop;
+  DateTime? _lastSpacePress;
+  static const int _doubleSpaceThresholdMs = 400;
 
   @override
   void initState() {
@@ -58,7 +60,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       final notifier = ref.read(playerProvider.notifier);
 
       if (event.logicalKey == LogicalKeyboardKey.space) {
-        notifier.togglePlayPause();
+        final now = DateTime.now();
+        if (_lastSpacePress != null &&
+            now.difference(_lastSpacePress!).inMilliseconds <
+                _doubleSpaceThresholdMs) {
+          // Double-space: seek to loop section start
+          _lastSpacePress = null; // Reset so triple-space doesn't re-trigger
+          notifier.seekToLoopSectionStart();
+        } else {
+          // Single space: toggle play/pause
+          _lastSpacePress = now;
+          notifier.togglePlayPause();
+        }
         return true;
       }
     }
