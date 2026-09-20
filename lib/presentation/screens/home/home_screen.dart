@@ -26,34 +26,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   late final bool _isDesktop;
   DateTime? _lastSpacePress;
   static const int _doubleSpaceThresholdMs = 400;
+  final FocusNode _rootFocusNode = FocusNode(debugLabel: 'HomeScreenRoot');
 
   @override
   void initState() {
     super.initState();
     _isDesktop =
         !kIsWeb && (Platform.isLinux || Platform.isWindows || Platform.isMacOS);
-    if (_isDesktop) {
-      HardwareKeyboard.instance.addHandler(_handleKeyEvent);
-    }
     _checkFfmpeg();
   }
 
   @override
   void dispose() {
-    if (_isDesktop) {
-      HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
-    }
+    _rootFocusNode.dispose();
     super.dispose();
   }
 
-  bool _handleKeyEvent(KeyEvent event) {
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (!_isDesktop) return KeyEventResult.ignored;
+
     // Don't capture keys when a text field has focus
     final primaryFocus = FocusManager.instance.primaryFocus;
     if (primaryFocus != null && primaryFocus.context != null) {
       // Check if the focused widget or any ancestor is an EditableText
       final editableText = primaryFocus.context!
           .findAncestorWidgetOfExactType<EditableText>();
-      if (editableText != null) return false;
+      if (editableText != null) return KeyEventResult.ignored;
     }
 
     if (event is KeyDownEvent) {
@@ -72,7 +70,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           _lastSpacePress = now;
           notifier.togglePlayPause();
         }
-        return true;
+        return KeyEventResult.handled;
       }
     }
 
@@ -81,14 +79,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
       if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
         notifier.skipForward(const Duration(seconds: 1));
-        return true;
+        return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
         notifier.skipBackward(const Duration(seconds: 1));
-        return true;
+        return KeyEventResult.handled;
       }
     }
 
-    return false;
+    return KeyEventResult.ignored;
   }
 
   Future<void> _checkFfmpeg() async {
@@ -128,72 +126,77 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final currentIndex = ref.watch(navigationProvider);
 
-    return Scaffold(
-      backgroundColor: context.colors.bgDarkest,
-      body: Column(
-        children: [
-          if (_isDesktop) const AppTitleBar(),
-          Expanded(
-            child: IndexedStack(index: currentIndex, children: _screens),
-          ),
-        ],
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: context.colors.bgDark,
-          border: Border(
-            top: BorderSide(
-              color: context.colors.surfaceBorder.withValues(alpha: 0.3),
-              width: 0.5,
-            ),
-          ),
-        ),
-        child: NavigationBar(
-          selectedIndex: currentIndex,
-          onDestinationSelected: (i) =>
-              ref.read(navigationProvider.notifier).state = i,
-          backgroundColor: Colors.transparent,
-          surfaceTintColor: Colors.transparent,
-          indicatorColor: Theme.of(
-            context,
-          ).colorScheme.primary.withValues(alpha: 0.12),
-          height: 68,
-          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          destinations: [
-            NavigationDestination(
-              icon: Icon(
-                Icons.library_music_outlined,
-                color: context.colors.textMuted,
-              ),
-              selectedIcon: Icon(
-                Icons.library_music_rounded,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              label: 'Library',
-            ),
-            NavigationDestination(
-              icon: Icon(
-                Icons.play_circle_outline_rounded,
-                color: context.colors.textMuted,
-              ),
-              selectedIcon: Icon(
-                Icons.play_circle_rounded,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              label: 'Player',
-            ),
-            NavigationDestination(
-              icon: Icon(
-                Icons.settings_outlined,
-                color: context.colors.textMuted,
-              ),
-              selectedIcon: Icon(
-                Icons.settings_rounded,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              label: 'Settings',
+    return Focus(
+      focusNode: _rootFocusNode,
+      autofocus: true,
+      onKeyEvent: _handleKeyEvent,
+      child: Scaffold(
+        backgroundColor: context.colors.bgDarkest,
+        body: Column(
+          children: [
+            if (_isDesktop) const AppTitleBar(),
+            Expanded(
+              child: IndexedStack(index: currentIndex, children: _screens),
             ),
           ],
+        ),
+        bottomNavigationBar: Container(
+          decoration: BoxDecoration(
+            color: context.colors.bgDark,
+            border: Border(
+              top: BorderSide(
+                color: context.colors.surfaceBorder.withValues(alpha: 0.3),
+                width: 0.5,
+              ),
+            ),
+          ),
+          child: NavigationBar(
+            selectedIndex: currentIndex,
+            onDestinationSelected: (i) =>
+                ref.read(navigationProvider.notifier).state = i,
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            indicatorColor: Theme.of(
+              context,
+            ).colorScheme.primary.withValues(alpha: 0.12),
+            height: 68,
+            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+            destinations: [
+              NavigationDestination(
+                icon: Icon(
+                  Icons.library_music_outlined,
+                  color: context.colors.textMuted,
+                ),
+                selectedIcon: Icon(
+                  Icons.library_music_rounded,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                label: 'Library',
+              ),
+              NavigationDestination(
+                icon: Icon(
+                  Icons.play_circle_outline_rounded,
+                  color: context.colors.textMuted,
+                ),
+                selectedIcon: Icon(
+                  Icons.play_circle_rounded,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                label: 'Player',
+              ),
+              NavigationDestination(
+                icon: Icon(
+                  Icons.settings_outlined,
+                  color: context.colors.textMuted,
+                ),
+                selectedIcon: Icon(
+                  Icons.settings_rounded,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                label: 'Settings',
+              ),
+            ],
+          ),
         ),
       ),
     );

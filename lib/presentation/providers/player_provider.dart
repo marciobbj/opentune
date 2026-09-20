@@ -304,6 +304,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
       // Apply saved settings
       await _player.setSpeed(settings.tempo);
+      await _player.setPitch(_semitonesToPitch(settings.pitch));
 
       if (!startFromBeginning && settings.lastPosition > Duration.zero) {
         await _player.seek(settings.lastPosition);
