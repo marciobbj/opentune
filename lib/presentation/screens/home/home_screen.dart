@@ -13,6 +13,26 @@ import '../../providers/player_provider.dart';
 import '../../widgets/app_title_bar.dart';
 import '../../widgets/ffmpeg_download_dialog.dart';
 
+/// A [SingleActivator] that only accepts when no [EditableText] has focus.
+/// This prevents player shortcuts (space, arrows) from firing while the user
+/// is typing in a text field.
+class _PlayerKeyActivator extends SingleActivator {
+  const _PlayerKeyActivator(super.trigger, {super.includeRepeats});
+
+  @override
+  bool accepts(KeyEvent event, HardwareKeyboard state) {
+    if (!super.accepts(event, state)) return false;
+    final pf = FocusManager.instance.primaryFocus;
+    if (pf?.context != null) {
+      if (pf!.context!.findAncestorWidgetOfExactType<EditableText>() !=
+          null) {
+        return false;
+      }
+    }
+    return true;
+  }
+}
+
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -32,63 +52,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.initState();
     _isDesktop =
         !kIsWeb && (Platform.isLinux || Platform.isWindows || Platform.isMacOS);
-    if (_isDesktop) {
-      HardwareKeyboard.instance.addHandler(_handleKeyEvent);
-    }
     _checkFfmpeg();
   }
 
-  @override
-  void dispose() {
-    if (_isDesktop) {
-      HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
+  void _handleSpace() {
+    final notifier = ref.read(playerProvider.notifier);
+    final now = DateTime.now();
+    if (_lastSpacePress != null &&
+        now.difference(_lastSpacePress!).inMilliseconds <
+            _doubleSpaceThresholdMs) {
+      _lastSpacePress = null;
+      notifier.seekToLoopSectionStart();
+    } else {
+      _lastSpacePress = now;
+      notifier.togglePlayPause();
     }
-    super.dispose();
   }
 
-  bool _handleKeyEvent(KeyEvent event) {
-    // Don't capture keys when a text field has focus
-    final primaryFocus = FocusManager.instance.primaryFocus;
-    if (primaryFocus != null && primaryFocus.context != null) {
-      // Check if the focused widget or any ancestor is an EditableText
-      final editableText = primaryFocus.context!
-          .findAncestorWidgetOfExactType<EditableText>();
-      if (editableText != null) return false;
-    }
+  void _handleSkipForward() {
+    ref.read(playerProvider.notifier).skipForward(const Duration(seconds: 1));
+  }
 
-    if (event is KeyDownEvent) {
-      final notifier = ref.read(playerProvider.notifier);
-
-      if (event.logicalKey == LogicalKeyboardKey.space) {
-        final now = DateTime.now();
-        if (_lastSpacePress != null &&
-            now.difference(_lastSpacePress!).inMilliseconds <
-                _doubleSpaceThresholdMs) {
-          // Double-space: seek to loop section start
-          _lastSpacePress = null; // Reset so triple-space doesn't re-trigger
-          notifier.seekToLoopSectionStart();
-        } else {
-          // Single space: toggle play/pause
-          _lastSpacePress = now;
-          notifier.togglePlayPause();
-        }
-        return true;
-      }
-    }
-
-    if (event is KeyDownEvent || event is KeyRepeatEvent) {
-      final notifier = ref.read(playerProvider.notifier);
-
-      if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-        notifier.skipForward(const Duration(seconds: 1));
-        return true;
-      } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-        notifier.skipBackward(const Duration(seconds: 1));
-        return true;
-      }
-    }
-
-    return false;
+  void _handleSkipBackward() {
+    ref.read(playerProvider.notifier).skipBackward(const Duration(seconds: 1));
   }
 
   Future<void> _checkFfmpeg() async {
@@ -128,7 +114,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final currentIndex = ref.watch(navigationProvider);
 
-    return Scaffold(
+    Widget content = Scaffold(
       backgroundColor: context.colors.bgDarkest,
       body: Column(
         children: [
@@ -150,16 +136,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         child: NavigationBar(
           selectedIndex: currentIndex,
-          onDestinationSelected: (i) {
-            // Unfocus any text fields before switching tabs.
-            // IndexedStack keeps all children mounted, so a TextField from
-            // the Library tab could retain focus even when invisible. That
-            // would cause the keyboard handler to skip space/arrow keys
-            // (thinking the user is typing), letting the event fall through
-            // to the NavigationBar which would re-activate the Library tab.
-            FocusManager.instance.primaryFocus?.unfocus();
-            ref.read(navigationProvider.notifier).state = i;
-          },
+          onDestinationSelected: (i) =>
+              ref.read(navigationProvider.notifier).state = i,
           backgroundColor: Colors.transparent,
           surfaceTintColor: Colors.transparent,
           indicatorColor: Theme.of(
@@ -205,5 +183,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
       ),
     );
+
+    // On desktop, intercept Space and Arrow keys within the focus tree.
+    // This is critical because HardwareKeyboard.addHandler returning true
+    // does NOT prevent Flutter's focus-tree key handling from also processing
+    // the same event. Without this, arrow keys trigger DirectionalFocusIntent
+    // (moving focus onto NavigationBar buttons) and Space triggers
+    // ActivateIntent (activating the focused button and switching tabs).
+    //
+    // CallbackShortcuts operates inside the focus tree, so returning "handled"
+    // properly blocks ActivateIntent and DirectionalFocusIntent from firing.
+    if (_isDesktop) {
+      content = CallbackShortcuts(
+        bindings: <ShortcutActivator, VoidCallback>{
+          const _PlayerKeyActivator(
+            LogicalKeyboardKey.space,
+            includeRepeats: false,
+          ): _handleSpace,
+          const _PlayerKeyActivator(LogicalKeyboardKey.arrowRight):
+              _handleSkipForward,
+          const _PlayerKeyActivator(LogicalKeyboardKey.arrowLeft):
+              _handleSkipBackward,
+        },
+        child: Focus(autofocus: true, child: content),
+      );
+    }
+
+    return content;
   }
 }
