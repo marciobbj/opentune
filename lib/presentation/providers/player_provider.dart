@@ -14,6 +14,7 @@ import '../../data/datasources/local_database.dart';
 import '../../core/utils/waveform_extractor.dart';
 import '../../core/utils/bookmark_service.dart';
 import 'settings_provider.dart';
+import 'favorites_provider.dart';
 
 // ── Audio Player Instance ──
 final audioPlayerProvider = Provider<AudioPlayer>((ref) {
@@ -38,6 +39,8 @@ class PlayerState {
   final double volume;
   final bool isShuffled;
   final List<Track> originalQueue;
+  final int? activePlaylistId;
+  final bool isFavoritesQueue;
 
   const PlayerState({
     this.currentTrack,
@@ -54,6 +57,8 @@ class PlayerState {
     this.volume = 1.0,
     this.isShuffled = false,
     this.originalQueue = const [],
+    this.activePlaylistId,
+    this.isFavoritesQueue = false,
   });
 
   double get progress => duration.inMilliseconds > 0
@@ -79,6 +84,9 @@ class PlayerState {
     double? volume,
     bool? isShuffled,
     List<Track>? originalQueue,
+    int? activePlaylistId,
+    bool clearActivePlaylist = false,
+    bool? isFavoritesQueue,
   }) {
     return PlayerState(
       currentTrack: currentTrack ?? this.currentTrack,
@@ -95,6 +103,12 @@ class PlayerState {
       volume: volume ?? this.volume,
       isShuffled: isShuffled ?? this.isShuffled,
       originalQueue: originalQueue ?? this.originalQueue,
+      activePlaylistId: clearActivePlaylist
+          ? null
+          : (activePlaylistId ?? this.activePlaylistId),
+      isFavoritesQueue:
+          isFavoritesQueue ??
+          (clearActivePlaylist ? false : this.isFavoritesQueue),
     );
   }
 }
@@ -110,10 +124,12 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   Timer? _persistTimer;
   int _loadGeneration = 0;
   String? _activeBookmarkPath;
+  ProviderSubscription<Set<int>>? _favoritesSub;
 
   PlayerNotifier(this._player, this._ref) : super(const PlayerState()) {
     _player.setVolume(0.3);
     _listenToPlayer();
+    _listenToFavorites();
     unawaited(_restorePersistentPlayerState());
   }
 
@@ -209,6 +225,49 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     );
   }
 
+  void _listenToFavorites() {
+    _favoritesSub = _ref.listen<Set<int>>(favoritesProvider, (
+      previous,
+      next,
+    ) async {
+      if (!state.isFavoritesQueue) return;
+      if (previous == null) return;
+
+      // Tracks newly added to favorites:
+      final addedIds = next.difference(previous);
+      if (addedIds.isNotEmpty) {
+        for (final trackId in addedIds) {
+          if (!state.queue.any((t) => t.id == trackId)) {
+            final track = await LocalDatabase.getTrackById(trackId);
+            if (track != null && state.isFavoritesQueue) {
+              if (!state.queue.any((t) => t.id == track.id)) {
+                final baseOriginal = state.originalQueue.isEmpty
+                    ? List<Track>.from(state.queue)
+                    : List<Track>.from(state.originalQueue);
+                state = state.copyWith(
+                  queue: [...state.queue, track],
+                  originalQueue: [...baseOriginal, track],
+                );
+              }
+            }
+          }
+        }
+      }
+
+      // Tracks removed from favorites:
+      final removedIds = previous.difference(next);
+      if (removedIds.isNotEmpty) {
+        for (final trackId in removedIds) {
+          final index = state.queue.indexWhere((t) => t.id == trackId);
+          // If in queue and not currently playing, remove it:
+          if (index != -1 && index != state.queueIndex) {
+            removeFromQueue(index);
+          }
+        }
+      }
+    });
+  }
+
   void _checkLoopBoundary(Duration position) {
     if (!state.settings.loopEnabled || !state.settings.hasLoop) return;
     final loopEnd = state.settings.loopEnd!;
@@ -231,10 +290,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     }
   }
 
-  Future<void> loadTrack(
-    Track track, {
-    bool startFromBeginning = false,
-  }) async {
+  Future<void> loadTrack(Track track, {bool startFromBeginning = false}) async {
     final loadId = ++_loadGeneration;
     _persistTimer?.cancel();
     state = state.copyWith(
@@ -341,13 +397,20 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     }
   }
 
-  Future<void> loadQueue(List<Track> queue, {int initialIndex = 0}) async {
+  Future<void> loadQueue(
+    List<Track> queue, {
+    int initialIndex = 0,
+    int? playlistId,
+    bool isFavoritesQueue = false,
+  }) async {
     if (queue.isEmpty) return;
     state = state.copyWith(
       queue: queue,
       queueIndex: initialIndex,
       originalQueue: queue,
       isShuffled: false,
+      activePlaylistId: playlistId,
+      isFavoritesQueue: isFavoritesQueue,
     );
     await loadTrack(
       queue[initialIndex],
@@ -380,6 +443,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       queueIndex: 0,
       isShuffled: false,
       originalQueue: [],
+      clearActivePlaylist: true,
+      isFavoritesQueue: false,
     );
   }
 
@@ -389,7 +454,12 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     int newIndex = state.queueIndex;
 
     if (newQueue.isEmpty) {
-      state = state.copyWith(queue: [], queueIndex: 0);
+      state = state.copyWith(
+        queue: [],
+        queueIndex: 0,
+        clearActivePlaylist: true,
+        isFavoritesQueue: false,
+      );
       return;
     }
 
@@ -706,10 +776,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     );
     // If bound to a section, update that section too
     if (boundSection != null) {
-      final updated = boundSection.copyWith(
-        startTime: start,
-        endTime: end,
-      );
+      final updated = boundSection.copyWith(startTime: start, endTime: end);
       await LocalDatabase.updateSection(updated);
       await _reloadSections();
     }
@@ -810,6 +877,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   void dispose() {
     _loadGeneration++;
     _persistTimer?.cancel();
+    _favoritesSub?.close();
     unawaited(_releaseActiveBookmark());
     _saveCurrentState();
     for (final sub in _subscriptions) {

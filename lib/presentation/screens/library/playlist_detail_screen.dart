@@ -9,6 +9,7 @@ import '../../../domain/entities/playlist.dart';
 import '../../../domain/entities/track.dart';
 import '../../providers/player_provider.dart';
 import '../../providers/navigation_provider.dart';
+import '../../providers/favorites_provider.dart';
 
 import '../../shared/edit_track_dialog.dart';
 
@@ -53,13 +54,19 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
         _tracks = tracks;
         _isLoading = false;
       });
+      // Adding/removing tracks here changes which tracks are starred.
+      if (_playlist.isFavorites) {
+        await ref.read(favoritesProvider.notifier).refresh();
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final color = AppColors
-        .markerColors[(_playlist.id ?? 0) % context.colors.markerColors.length];
+    final color = _playlist.isFavorites
+        ? context.colors.favorite
+        : AppColors.markerColors[(_playlist.id ?? 0) %
+              context.colors.markerColors.length];
 
     return Scaffold(
       backgroundColor: context.colors.bgDarkest,
@@ -127,41 +134,43 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                       ],
                     ),
                   ),
-                  const PopupMenuDivider(),
-                  PopupMenuItem(
-                    value: 'rename',
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.edit_rounded,
-                          color: context.colors.textSecondary,
-                          size: 20,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          'Rename Playlist',
-                          style: TextStyle(color: context.colors.textPrimary),
-                        ),
-                      ],
+                  if (!_playlist.isFavorites) ...[
+                    const PopupMenuDivider(),
+                    PopupMenuItem(
+                      value: 'rename',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.edit_rounded,
+                            color: context.colors.textSecondary,
+                            size: 20,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Rename Playlist',
+                            style: TextStyle(color: context.colors.textPrimary),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.delete_outline_rounded,
-                          color: context.colors.error,
-                          size: 20,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          'Delete Playlist',
-                          style: TextStyle(color: context.colors.error),
-                        ),
-                      ],
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.delete_outline_rounded,
+                            color: context.colors.error,
+                            size: 20,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Delete Playlist',
+                            style: TextStyle(color: context.colors.error),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
+                  ],
                 ],
                 onSelected: (value) {
                   if (value == 'add') _showAddExistingTracksDialog();
@@ -183,7 +192,9 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                 decoration: BoxDecoration(color: color.withValues(alpha: 0.15)),
                 child: Center(
                   child: Icon(
-                    Icons.folder_rounded,
+                    _playlist.isFavorites
+                        ? Icons.star_rounded
+                        : Icons.folder_rounded,
                     color: color.withValues(alpha: 0.3),
                     size: 80,
                   ),
@@ -305,6 +316,9 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                       onEdit: () => _editTrackMetadata(track),
                       onCopyMetadata: () => _copyMetadataFromTrack(track),
                       onRemove: () => _removeTrack(track),
+                      removeLabel: _playlist.isFavorites
+                          ? 'Remove from favorites'
+                          : 'Remove from playlist',
                     ),
                   );
                 },
@@ -327,7 +341,11 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
   void _playAll() {
     if (_tracks.isEmpty) return;
     final notifier = ref.read(playerProvider.notifier);
-    notifier.loadQueue(_tracks);
+    notifier.loadQueue(
+      _tracks,
+      playlistId: _playlist.id,
+      isFavoritesQueue: _playlist.isFavorites,
+    );
     // Switch to Player tab
     ref.read(navigationProvider.notifier).state = 1;
     Navigator.pop(context);
@@ -335,7 +353,12 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
 
   void _openTrack(Track track, int index) {
     final notifier = ref.read(playerProvider.notifier);
-    notifier.loadQueue(_tracks, initialIndex: index);
+    notifier.loadQueue(
+      _tracks,
+      initialIndex: index,
+      playlistId: _playlist.id,
+      isFavoritesQueue: _playlist.isFavorites,
+    );
     // Switch to Player tab
     ref.read(navigationProvider.notifier).state = 1;
     Navigator.pop(context);
@@ -1029,6 +1052,7 @@ class _PlaylistTrackTile extends StatelessWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onCopyMetadata;
   final VoidCallback? onRemove;
+  final String removeLabel;
 
   const _PlaylistTrackTile({
     required this.track,
@@ -1038,6 +1062,7 @@ class _PlaylistTrackTile extends StatelessWidget {
     this.onEdit,
     this.onCopyMetadata,
     this.onRemove,
+    this.removeLabel = 'Remove from playlist',
   });
 
   @override
@@ -1139,7 +1164,7 @@ class _PlaylistTrackTile extends StatelessWidget {
                     PopupMenuItem(
                       value: 'remove',
                       child: Text(
-                        'Remove from playlist',
+                        removeLabel,
                         style: TextStyle(color: context.colors.warning),
                       ),
                     ),

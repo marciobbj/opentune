@@ -3,6 +3,10 @@ class Playlist {
   final String name;
   final String description;
   final List<int> trackIds;
+
+  /// True for the built-in "Favorites" playlist. Starred tracks are stored
+  /// here automatically; it can't be renamed or deleted by the user.
+  final bool isFavorites;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -11,6 +15,7 @@ class Playlist {
     required this.name,
     this.description = '',
     this.trackIds = const [],
+    this.isFavorites = false,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -20,6 +25,7 @@ class Playlist {
     String? name,
     String? description,
     List<int>? trackIds,
+    bool? isFavorites,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -28,6 +34,7 @@ class Playlist {
       name: name ?? this.name,
       description: description ?? this.description,
       trackIds: trackIds ?? this.trackIds,
+      isFavorites: isFavorites ?? this.isFavorites,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -38,6 +45,7 @@ class Playlist {
       'id': id,
       'name': name,
       'description': description,
+      'isFavorites': isFavorites ? 1 : 0,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -48,6 +56,7 @@ class Playlist {
       id: map['id'] as int?,
       name: map['name'] as String,
       description: map['description'] as String? ?? '',
+      isFavorites: (map['isFavorites'] as int? ?? 0) == 1,
       createdAt: DateTime.parse(map['createdAt'] as String),
       updatedAt: DateTime.parse(map['updatedAt'] as String),
     );

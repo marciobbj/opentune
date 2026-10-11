@@ -13,6 +13,8 @@ class TopBar extends StatelessWidget {
   final VoidCallback? onQueueToggle;
   final VoidCallback? onBackPressed;
   final VoidCallback? onSharePressed;
+  final VoidCallback? onFavoriteToggle;
+  final bool isFavorite;
   final bool isQueueOpen;
   final int queueCount;
   final bool hasTrack;
@@ -31,6 +33,8 @@ class TopBar extends StatelessWidget {
     this.onQueueToggle,
     this.onBackPressed,
     this.onSharePressed,
+    this.onFavoriteToggle,
+    this.isFavorite = false,
     this.isQueueOpen = false,
     this.hasTrack = false,
     this.queueCount = 0,
@@ -127,6 +131,29 @@ class TopBar extends StatelessWidget {
                   ],
                 ),
               ),
+              // Favorite (star) button
+              if (hasTrack)
+                IconButton(
+                  icon: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    transitionBuilder: (child, anim) =>
+                        ScaleTransition(scale: anim, child: child),
+                    child: Icon(
+                      isFavorite
+                          ? Icons.star_rounded
+                          : Icons.star_border_rounded,
+                      key: ValueKey(isFavorite),
+                      size: 24,
+                    ),
+                  ),
+                  color: isFavorite
+                      ? context.colors.favorite
+                      : context.colors.textSecondary,
+                  onPressed: onFavoriteToggle,
+                  tooltip: isFavorite
+                      ? 'Remove from favorites'
+                      : 'Add to favorites',
+                ),
               // Share button
               if (hasTrack)
                 IconButton(

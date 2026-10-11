@@ -14,6 +14,7 @@ class QueuePanel extends StatelessWidget {
   final void Function(int index)? onTapTrack;
   final void Function(int index)? onRemoveTrack;
   final void Function(int oldIndex, int newIndex)? onReorder;
+  final bool isFavorites;
 
   const QueuePanel({
     super.key,
@@ -28,6 +29,7 @@ class QueuePanel extends StatelessWidget {
     this.onTapTrack,
     this.onRemoveTrack,
     this.onReorder,
+    this.isFavorites = false,
   });
 
   @override
@@ -62,8 +64,10 @@ class QueuePanel extends StatelessWidget {
             child: Row(
               children: [
                 Icon(
-                  Icons.queue_music_rounded,
-                  color: Theme.of(context).colorScheme.primary,
+                  isFavorites ? Icons.star_rounded : Icons.queue_music_rounded,
+                  color: isFavorites
+                      ? context.colors.favorite
+                      : Theme.of(context).colorScheme.primary,
                   size: 20,
                 ),
                 const SizedBox(width: 8),
@@ -72,7 +76,7 @@ class QueuePanel extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Queue',
+                        isFavorites ? 'Favorites Queue' : 'Queue',
                         style: TextStyle(
                           color: context.colors.textPrimary,
                           fontSize: 15,

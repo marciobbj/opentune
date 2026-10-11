@@ -12,6 +12,7 @@ import '../../../domain/entities/playlist.dart';
 import '../../../domain/entities/track.dart';
 import '../../providers/player_provider.dart';
 import '../../providers/navigation_provider.dart';
+import '../../providers/favorites_provider.dart';
 import '../../shared/edit_track_dialog.dart';
 import 'playlist_detail_screen.dart';
 
@@ -167,6 +168,37 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         _allTracks = validTracks;
         _isLoading = false;
       });
+      // Playlist membership may have changed (e.g. tracks added to Favorites
+      // via "Add to playlist" or removed tracks), so resync the stars.
+      await ref.read(favoritesProvider.notifier).refresh();
+    }
+  }
+
+  /// Reloads only the playlists (cheap) — used to keep counts in sync.
+  Future<void> _reloadPlaylists() async {
+    final playlists = await LocalDatabase.getAllPlaylists();
+    if (mounted) setState(() => _playlists = playlists);
+  }
+
+  Future<void> _bulkToggleFavorite() async {
+    final ids = Set<int>.from(_selectedTrackIds);
+    if (ids.isEmpty) return;
+    final favorites = ref.read(favoritesProvider);
+    final star = !ids.every(favorites.contains);
+    await ref.read(favoritesProvider.notifier).setFavoriteMany(ids, star);
+    _exitSelectionMode();
+    if (mounted) {
+      final count = ids.length;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            star
+                ? 'Added $count track${count > 1 ? "s" : ""} to Favorites'
+                : 'Removed $count track${count > 1 ? "s" : ""} from Favorites',
+          ),
+          backgroundColor: context.colors.success,
+        ),
+      );
     }
   }
 
@@ -474,6 +506,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Keep playlist counts (e.g. Favorites) in sync when stars change anywhere.
+    ref.listen<Set<int>>(favoritesProvider, (prev, next) => _reloadPlaylists());
+
     return Scaffold(
       backgroundColor: context.colors.bgDarkest,
       body: PopScope(
@@ -657,6 +692,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   Widget _buildSelectionActionBar() {
+    final favorites = ref.watch(favoritesProvider);
+    final allSelectedFavorite = _selectedTrackIds.every(favorites.contains);
     return Positioned(
       left: 16,
       right: 16,
@@ -701,6 +738,19 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               color: context.colors.surfaceBorder.withValues(alpha: 0.3),
             ),
             _SelectionActionButton(
+              icon: allSelectedFavorite
+                  ? Icons.star_rounded
+                  : Icons.star_border_rounded,
+              label: allSelectedFavorite ? 'Unstar' : 'Star',
+              color: context.colors.favorite,
+              onTap: _bulkToggleFavorite,
+            ),
+            Container(
+              width: 1,
+              height: 28,
+              color: context.colors.surfaceBorder.withValues(alpha: 0.3),
+            ),
+            _SelectionActionButton(
               icon: Icons.edit_rounded,
               label: 'Edit',
               onTap: _bulkEditMetadata,
@@ -723,6 +773,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   Widget _buildContent() {
+    final favorites = ref.watch(favoritesProvider);
     return CustomScrollView(
       slivers: [
         // Playlists Section
@@ -767,8 +818,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                         playlist: _playlists[index],
                         trackCount: _playlists[index].trackIds.length,
                         onTap: () => _openPlaylist(_playlists[index]),
-                        onOptionsTap: () =>
-                            _showPlaylistOptions(_playlists[index]),
+                        onOptionsTap: _playlists[index].isFavorites
+                            ? null
+                            : () => _showPlaylistOptions(_playlists[index]),
                       ),
                     );
                   },
@@ -874,6 +926,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   track: track,
                   isSelectionMode: _isSelectionMode,
                   isSelected: isSelected,
+                  isFavorite: favorites.contains(track.id),
+                  onToggleFavorite: () =>
+                      ref.read(favoritesProvider.notifier).toggle(track.id!),
                   onTap: _isSelectionMode
                       ? () => _toggleTrackSelection(track)
                       : () => _openTrackInPlayer(track),
@@ -1482,10 +1537,13 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 ..._playlists.map((playlist) {
                   return ListTile(
                     leading: Icon(
-                      Icons.folder_rounded,
-                      color:
-                          context.colors.markerColors[(playlist.id ?? 0) %
-                              context.colors.markerColors.length],
+                      playlist.isFavorites
+                          ? Icons.star_rounded
+                          : Icons.folder_rounded,
+                      color: playlist.isFavorites
+                          ? context.colors.favorite
+                          : context.colors.markerColors[(playlist.id ?? 0) %
+                                context.colors.markerColors.length],
                     ),
                     title: Text(
                       playlist.name,
@@ -2000,9 +2058,13 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     leading: Icon(
                       alreadyAdded
                           ? Icons.check_circle_rounded
+                          : playlist.isFavorites
+                          ? Icons.star_rounded
                           : Icons.folder_rounded,
                       color: alreadyAdded
                           ? context.colors.success
+                          : playlist.isFavorites
+                          ? context.colors.favorite
                           : context.colors.markerColors[(playlist.id ?? 0) %
                                 context.colors.markerColors.length],
                     ),
@@ -2072,18 +2134,24 @@ class _PlaylistCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = context
-        .colors
-        .markerColors[(playlist.id ?? 0) % context.colors.markerColors.length];
+    final color = playlist.isFavorites
+        ? context.colors.favorite
+        : context.colors.markerColors[(playlist.id ?? 0) %
+              context.colors.markerColors.length];
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: 140,
         decoration: BoxDecoration(
-          color: context.colors.bgCard.withValues(alpha: 0.8),
+          color: playlist.isFavorites
+              ? color.withValues(alpha: 0.08)
+              : context.colors.bgCard.withValues(alpha: 0.8),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.25), width: 0.5),
+          border: Border.all(
+            color: color.withValues(alpha: playlist.isFavorites ? 0.45 : 0.25),
+            width: playlist.isFavorites ? 1 : 0.5,
+          ),
         ),
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -2094,19 +2162,26 @@ class _PlaylistCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.folder_rounded, color: color, size: 28),
-                GestureDetector(
-                  onTap: onOptionsTap,
-                  behavior: HitTestBehavior.opaque,
-                  child: Padding(
-                    padding: EdgeInsets.all(4.0),
-                    child: Icon(
-                      Icons.more_vert_rounded,
-                      color: context.colors.textMuted,
-                      size: 20,
+                Icon(
+                  playlist.isFavorites
+                      ? Icons.star_rounded
+                      : Icons.folder_rounded,
+                  color: color,
+                  size: 28,
+                ),
+                if (onOptionsTap != null)
+                  GestureDetector(
+                    onTap: onOptionsTap,
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      padding: EdgeInsets.all(4.0),
+                      child: Icon(
+                        Icons.more_vert_rounded,
+                        color: context.colors.textMuted,
+                        size: 20,
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
             Column(
@@ -2149,8 +2224,10 @@ class _TrackTile extends StatelessWidget {
   final VoidCallback? onEditTrack;
   final VoidCallback? onCopyMetadata;
   final VoidCallback? onRemoveFromLibrary;
+  final VoidCallback? onToggleFavorite;
   final bool isSelectionMode;
   final bool isSelected;
+  final bool isFavorite;
 
   const _TrackTile({
     required this.track,
@@ -2160,8 +2237,10 @@ class _TrackTile extends StatelessWidget {
     this.onEditTrack,
     this.onCopyMetadata,
     this.onRemoveFromLibrary,
+    this.onToggleFavorite,
     this.isSelectionMode = false,
     this.isSelected = false,
+    this.isFavorite = false,
   });
 
   @override
@@ -2275,6 +2354,38 @@ class _TrackTile extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (!isSelectionMode)
+                  IconButton(
+                    onPressed: onToggleFavorite,
+                    tooltip: isFavorite
+                        ? 'Remove from favorites'
+                        : 'Add to favorites',
+                    visualDensity: VisualDensity.compact,
+                    icon: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      transitionBuilder: (child, anim) =>
+                          ScaleTransition(scale: anim, child: child),
+                      child: Icon(
+                        isFavorite
+                            ? Icons.star_rounded
+                            : Icons.star_border_rounded,
+                        key: ValueKey(isFavorite),
+                        color: isFavorite
+                            ? context.colors.favorite
+                            : context.colors.textMuted,
+                        size: 22,
+                      ),
+                    ),
+                  )
+                else if (isFavorite)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Icon(
+                      Icons.star_rounded,
+                      color: context.colors.favorite,
+                      size: 18,
+                    ),
+                  ),
                 if (!isSelectionMode)
                   PopupMenuButton<String>(
                     icon: Icon(

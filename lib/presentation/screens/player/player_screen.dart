@@ -11,6 +11,7 @@ import '../../../data/datasources/local_database.dart';
 import '../../providers/player_provider.dart';
 import '../../providers/navigation_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../providers/favorites_provider.dart';
 import 'widgets/waveform_view.dart';
 import 'widgets/transport_controls.dart';
 import 'widgets/top_bar.dart';
@@ -170,6 +171,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     final startQueueFromBeginning = ref.watch(
       settingsProvider.select((s) => s.startQueueFromBeginning),
     );
+    final currentTrackId = state.currentTrack?.id;
+    final isFavorite = ref.watch(
+      favoritesProvider.select(
+        (ids) => currentTrackId != null && ids.contains(currentTrackId),
+      ),
+    );
 
     return Scaffold(
       backgroundColor: context.colors.bgDarkest,
@@ -211,6 +218,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                             ref.read(navigationProvider.notifier).state = 0,
                         onQueueToggle: _toggleQueuePanel,
                         onSharePressed: _shareCurrentTrack,
+                        isFavorite: isFavorite,
+                        onFavoriteToggle: currentTrackId == null
+                            ? null
+                            : () => ref
+                                  .read(favoritesProvider.notifier)
+                                  .toggle(currentTrackId),
                         isQueueOpen: _showQueuePanel,
                         hasTrack: state.currentTrack != null,
                         queueCount: state.queue.length,
@@ -237,8 +250,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                               loopStart: state.settings.loopStart,
                               loopEnd: state.settings.loopEnd,
                               loopEnabled: state.settings.loopEnabled,
-                              loopBoundSectionId:
-                                  notifier.findSectionBoundToLoop()?.id,
+                              loopBoundSectionId: notifier
+                                  .findSectionBoundToLoop()
+                                  ?.id,
                               albumArtPath: showAlbumArt
                                   ? state.currentTrack?.albumArtPath
                                   : null,
@@ -526,6 +540,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                             queue: state.queue,
                             currentIndex: state.queueIndex,
                             isShuffled: state.isShuffled,
+                            isFavorites: state.isFavoritesQueue,
                             onClose: _toggleQueuePanel,
                             onShuffleToggle: () => notifier.toggleShuffle(),
                             onClearQueue: () => notifier.clearQueue(),

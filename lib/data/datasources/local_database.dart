@@ -8,7 +8,10 @@ import '../../domain/entities/playlist.dart';
 class LocalDatabase {
   static Database? _database;
   static const String _dbName = 'opentune.db';
-  static const int _dbVersion = 3;
+  static const int _dbVersion = 4;
+
+  /// Display name of the built-in favorites playlist.
+  static const String favoritesPlaylistName = 'Favorites';
 
   static Future<Database> get database async {
     _database ??= await _initDatabase();
@@ -27,7 +30,28 @@ class LocalDatabase {
       },
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
+      onOpen: _ensureFavoritesPlaylist,
     );
+  }
+
+  /// Makes sure the built-in Favorites playlist exists.
+  static Future<void> _ensureFavoritesPlaylist(Database db) async {
+    final existing = await db.query(
+      'playlists',
+      columns: ['id'],
+      where: 'isFavorites = 1',
+      limit: 1,
+    );
+    if (existing.isNotEmpty) return;
+
+    final now = DateTime.now().toIso8601String();
+    await db.insert('playlists', {
+      'name': favoritesPlaylistName,
+      'description': 'Your starred tracks',
+      'isFavorites': 1,
+      'createdAt': now,
+      'updatedAt': now,
+    });
   }
 
   static Future<void> _onCreate(Database db, int version) async {
@@ -79,6 +103,7 @@ class LocalDatabase {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         description TEXT DEFAULT '',
+        isFavorites INTEGER DEFAULT 0,
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL
       )
@@ -106,6 +131,11 @@ class LocalDatabase {
     }
     if (oldVersion < 3) {
       await db.execute('ALTER TABLE tracks ADD COLUMN bookmarkData TEXT');
+    }
+    if (oldVersion < 4) {
+      await db.execute(
+        'ALTER TABLE playlists ADD COLUMN isFavorites INTEGER DEFAULT 0',
+      );
     }
   }
 
@@ -232,7 +262,11 @@ class LocalDatabase {
 
   static Future<List<Playlist>> getAllPlaylists() async {
     final db = await database;
-    final maps = await db.query('playlists', orderBy: 'updatedAt DESC');
+    // The Favorites playlist is always pinned first.
+    final maps = await db.query(
+      'playlists',
+      orderBy: 'isFavorites DESC, updatedAt DESC',
+    );
     final playlists = <Playlist>[];
 
     for (final map in maps) {
@@ -258,16 +292,18 @@ class LocalDatabase {
     );
     if (existing.isNotEmpty) return;
 
-    final count = (await db.query(
-      'playlist_tracks',
-      where: 'playlistId = ?',
-      whereArgs: [playlistId],
-    )).length;
+    // Use MAX + 1 (instead of COUNT) so the order stays correct after removals.
+    final result = await db.rawQuery(
+      'SELECT COALESCE(MAX(orderIndex), -1) + 1 AS nextIndex '
+      'FROM playlist_tracks WHERE playlistId = ?',
+      [playlistId],
+    );
+    final nextIndex = (result.first['nextIndex'] as int?) ?? 0;
 
     await db.insert('playlist_tracks', {
       'playlistId': playlistId,
       'trackId': trackId,
-      'orderIndex': count,
+      'orderIndex': nextIndex,
     });
   }
 
@@ -285,6 +321,58 @@ class LocalDatabase {
 
   static Future<void> deletePlaylist(int id) async {
     final db = await database;
-    await db.delete('playlists', where: 'id = ?', whereArgs: [id]);
+    // The built-in Favorites playlist can never be deleted.
+    await db.delete(
+      'playlists',
+      where: 'id = ? AND COALESCE(isFavorites, 0) = 0',
+      whereArgs: [id],
+    );
+  }
+
+  // ── Favorites ──
+
+  /// Returns the id of the built-in Favorites playlist (creating it if needed).
+  static Future<int> getFavoritesPlaylistId() async {
+    final db = await database;
+    var rows = await db.query(
+      'playlists',
+      columns: ['id'],
+      where: 'isFavorites = 1',
+      limit: 1,
+    );
+    if (rows.isEmpty) {
+      await _ensureFavoritesPlaylist(db);
+      rows = await db.query(
+        'playlists',
+        columns: ['id'],
+        where: 'isFavorites = 1',
+        limit: 1,
+      );
+    }
+    return rows.first['id'] as int;
+  }
+
+  /// Ids of all tracks currently marked as favorite.
+  static Future<Set<int>> getFavoriteTrackIds() async {
+    final db = await database;
+    final playlistId = await getFavoritesPlaylistId();
+    final rows = await db.query(
+      'playlist_tracks',
+      columns: ['trackId'],
+      where: 'playlistId = ?',
+      whereArgs: [playlistId],
+    );
+    return rows.map((r) => r['trackId'] as int).toSet();
+  }
+
+  /// Marks / unmarks a track as favorite by adding or removing it from the
+  /// Favorites playlist.
+  static Future<void> setTrackFavorite(int trackId, bool favorite) async {
+    final playlistId = await getFavoritesPlaylistId();
+    if (favorite) {
+      await addTrackToPlaylist(playlistId, trackId);
+    } else {
+      await removeTrackFromPlaylist(playlistId, trackId);
+    }
   }
 }

@@ -66,4 +66,6 @@ class AppColors {
   static const Color warning = Color(0xFFF59E0B);
   static const Color error = Color(0xFFEF4444);
 
+  // Favorites (star)
+  static const Color favorite = Color(0xFFFBBF24);
 }
