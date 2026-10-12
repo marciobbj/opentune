@@ -11,8 +11,21 @@ import 'package:just_waveform/just_waveform.dart';
 import 'ffmpeg_manager.dart';
 
 class WaveformExtractor {
-  static const int _ffmpegSampleRate = 2000;
-  static const int _cacheVersion = 2;
+  /// Sample rate used for analysis on desktop. Must be high enough to keep
+  /// the frequencies the ear is most sensitive to (1–5 kHz); resampling to a
+  /// very low rate low-passes the signal and over-represents bass.
+  static const int _ffmpegSampleRate = 11025;
+
+  /// Approximation of ITU-R BS.1770 K-weighting: removes sub-bass rumble and
+  /// boosts the upper mids/highs so the envelope tracks perceived loudness
+  /// instead of raw (bass-dominated) energy.
+  static const String _ffmpegWeightingFilter =
+      'highpass=f=40,highshelf=f=1500:g=4';
+
+  static const int _cacheVersion = 3;
+
+  /// Number of sub-windows per bin used to capture short loud moments.
+  static const int _subWindows = 4;
 
   static Future<List<double>> extract(String filePath, {int bins = 300}) async {
     try {
@@ -112,6 +125,8 @@ class WaveformExtractor {
         '-y',
         '-i',
         filePath,
+        '-af',
+        _ffmpegWeightingFilter,
         '-ac',
         '1',
         '-ar',
@@ -146,76 +161,64 @@ class WaveformExtractor {
   }
 
   static List<double> _processJustWaveform(Waveform waveform, int bins) {
-    if (waveform.length == 0) return _generateEmpty(bins);
+    final int length = waveform.length;
+    if (length == 0 || bins <= 0) return _generateEmpty(bins);
 
-    final int pixelsPerBin = waveform.length ~/ bins;
-    if (pixelsPerBin == 0) return _generateEmpty(bins);
+    final acc = _EnvelopeAccumulator(bins, _subWindows);
+    final int totalSubs = bins * _subWindows;
 
-    final List<double> raw = List.filled(bins, 0.0);
-    double maxAmplitude = 0.0;
-
-    for (int i = 0; i < bins; i++) {
-      int start = i * pixelsPerBin;
-      int end = (i == bins - 1) ? waveform.length : (i + 1) * pixelsPerBin;
-
-      double sum = 0.0;
-      for (int j = start; j < end; j++) {
-        final double maxVal = waveform.getPixelMax(j).abs().toDouble();
-        final double minVal = waveform.getPixelMin(j).abs().toDouble();
-        sum += math.max(maxVal, minVal);
-      }
-
-      final double avg = sum / (end - start);
-      raw[i] = avg;
-      if (avg > maxAmplitude) maxAmplitude = avg;
+    // Each pixel holds the min/max of a short (~10 ms) window. Treat its
+    // absolute peak as an amplitude sample and aggregate it exactly like the
+    // PCM path (RMS + loudest sub-window), so desktop and mobile render the
+    // same track with the same proportions.
+    for (int j = 0; j < length; j++) {
+      final double maxVal = waveform.getPixelMax(j).abs().toDouble();
+      final double minVal = waveform.getPixelMin(j).abs().toDouble();
+      final double peak = math.max(maxVal, minVal);
+      // Fractional mapping: every bin covers the same span of time.
+      final int sub = (j * totalSubs) ~/ length;
+      acc.add(sub, peak * peak);
     }
 
-    if (maxAmplitude <= 0) return _generateEmpty(bins);
-
-    return _normalize(raw);
+    return _normalize(acc.envelope());
   }
 
-  /// Adaptive normalization that adjusts contrast based on the audio's
-  /// dynamic range.
+  /// Perceptual normalization.
   ///
-  /// For dynamic audio (big difference between quiet and loud parts),
-  /// preserves the real proportions. For compressed/loud audio (everything
-  /// near the peak), applies a stronger power curve to reveal variation
-  /// that would otherwise look like a flat wall.
+  /// Loudness perception is logarithmic, so values are mapped in dB:
+  /// - The reference level is a high percentile (not the absolute peak), so a
+  ///   single transient or clipped spot doesn't shrink the whole waveform.
+  /// - The displayed dynamic range adapts to the track: compressed masters
+  ///   (everything near the top) get a narrow window to reveal variation,
+  ///   while dynamic tracks get a wide window so quiet intros stay visible.
   static List<double> _normalize(List<double> raw) {
     final int n = raw.length;
     if (n == 0) return raw;
 
-    double peak = 0.0;
-    for (int i = 0; i < n; i++) {
-      if (raw[i] > peak) peak = raw[i];
-    }
+    double toDb(double v) => 20 * math.log(math.max(v, 1e-9)) / math.ln10;
 
-    if (peak <= 0) {
-      return List.filled(n, 0.05);
-    }
-
-    // Normalize to 0–1 by peak
-    for (int i = 0; i < n; i++) {
-      raw[i] = raw[i] / peak;
-    }
-
-    // Measure how compressed the audio is using the 10th percentile.
-    // High p10 = compressed (everything loud), low p10 = dynamic.
     final sorted = List<double>.from(raw)..sort();
-    final double p10 = sorted[(n * 0.10).floor()];
+    final double ref = sorted[((n - 1) * 0.995).round()];
+    if (ref <= 0) return _generateEmpty(n);
+    final double refDb = toDb(ref);
 
-    // Adaptive exponent:
-    //   p10 ≈ 0   (dynamic)    → exponent ≈ 0.9  (gentle lift for quiet parts)
-    //   p10 ≈ 0.5 (moderate)   → exponent ≈ 1.5
-    //   p10 ≈ 0.8 (compressed) → exponent ≈ 2.2  (spread out the top cluster)
-    final double exponent = 0.9 + p10 * 1.6;
+    // Find the quiet level among bins that actually contain sound, so
+    // leading/trailing silence doesn't widen the window.
+    final audible = sorted.where((v) => toDb(v) - refDb > -70).toList();
+    final double p10 = audible.isEmpty
+        ? ref
+        : audible[(audible.length * 0.10).floor()];
+    final double p10Db = toDb(p10) - refDb;
 
-    for (int i = 0; i < n; i++) {
-      raw[i] = math.pow(raw[i], exponent).toDouble().clamp(0.05, 1.0);
-    }
+    // Window floor: ~6 dB below the quiet level, between -48 dB and -18 dB.
+    final double floorDb = (p10Db - 6).clamp(-48.0, -18.0);
 
-    return raw;
+    return List<double>.generate(n, (i) {
+      final double db = toDb(raw[i]) - refDb;
+      final double t = ((db - floorDb) / -floorDb).clamp(0.0, 1.0);
+      // Slight ease-in keeps contrast near the top of the range.
+      return math.pow(t, 1.3).toDouble().clamp(0.05, 1.0);
+    });
   }
 
   static List<double> _generateEmpty(int bins) {
@@ -228,39 +231,24 @@ class WaveformExtractor {
     int totalSamples,
   ) async {
     return Isolate.run(() async {
-      if (totalSamples <= 0) return _generateEmpty(bins);
+      if (totalSamples <= 0 || bins <= 0) return _generateEmpty(bins);
 
       final pcmFile = File(pcmFilePath);
 
-      final int samplesPerBin = totalSamples ~/ bins;
-      if (samplesPerBin == 0) return _generateEmpty(bins);
-
-      const int subWindows = 4;
-      final fullSumSq = List<double>.filled(bins, 0.0);
-      final fullCounts = List<int>.filled(bins, 0);
-      final subSumSq = List<double>.filled(bins * subWindows, 0.0);
-      final subCounts = List<int>.filled(bins * subWindows, 0);
+      final acc = _EnvelopeAccumulator(bins, _subWindows);
+      final int totalSubs = bins * _subWindows;
 
       var sampleIndex = 0;
       int? carryByte;
 
       void addSample(int rawSample) {
-        var bin = sampleIndex ~/ samplesPerBin;
-        if (bin >= bins) bin = bins - 1;
+        // Fractional mapping: every bin covers the same span of time, so the
+        // waveform stays aligned with the playback cursor.
+        var sub = (sampleIndex * totalSubs) ~/ totalSamples;
+        if (sub >= totalSubs) sub = totalSubs - 1;
 
         final sample = rawSample / 32768.0;
-        final squared = sample * sample;
-        fullSumSq[bin] += squared;
-        fullCounts[bin] += 1;
-
-        final relativeIndex = sampleIndex - (bin * samplesPerBin);
-        final subIndex = ((relativeIndex * subWindows) ~/ samplesPerBin).clamp(
-          0,
-          subWindows - 1,
-        );
-        final offset = bin * subWindows + subIndex;
-        subSumSq[offset] += squared;
-        subCounts[offset] += 1;
+        acc.add(sub, sample * sample);
 
         sampleIndex += 1;
       }
@@ -286,29 +274,7 @@ class WaveformExtractor {
         }
       }
 
-      final raw = List<double>.filled(bins, 0.0);
-      double maxAmplitude = 0.0;
-
-      for (int bin = 0; bin < bins; bin++) {
-        if (fullCounts[bin] == 0) continue;
-
-        final fullRms = math.sqrt(fullSumSq[bin] / fullCounts[bin]);
-        double peakRms = 0.0;
-        for (int sub = 0; sub < subWindows; sub++) {
-          final offset = bin * subWindows + sub;
-          if (subCounts[offset] == 0) continue;
-          final rms = math.sqrt(subSumSq[offset] / subCounts[offset]);
-          if (rms > peakRms) peakRms = rms;
-        }
-
-        final value = fullRms * 0.75 + peakRms * 0.25;
-        raw[bin] = value;
-        if (value > maxAmplitude) maxAmplitude = value;
-      }
-
-      if (maxAmplitude <= 0) return _generateEmpty(bins);
-
-      return _normalize(raw);
+      return _normalize(acc.envelope());
     });
   }
 
@@ -373,5 +339,58 @@ class WaveformExtractor {
       _ffmpegSampleRate,
     ].join('|');
     return base64Url.encode(utf8.encode(payload)).replaceAll('=', '');
+  }
+}
+
+/// Accumulates squared amplitudes into `bins * subWindows` slots and turns
+/// them into a per-bin envelope. Shared by the native and FFmpeg paths so
+/// both produce the same metric.
+class _EnvelopeAccumulator {
+  final int bins;
+  final int subWindows;
+  final Float64List _sumSq;
+  final Int32List _counts;
+
+  _EnvelopeAccumulator(this.bins, this.subWindows)
+    : _sumSq = Float64List(bins * subWindows),
+      _counts = Int32List(bins * subWindows);
+
+  void add(int subIndex, double squared) {
+    _sumSq[subIndex] += squared;
+    _counts[subIndex] += 1;
+  }
+
+  /// Per bin: 75% full-bin RMS + 25% loudest sub-window RMS. The RMS part
+  /// tracks sustained loudness; the sub-window part keeps short accents
+  /// visible without letting isolated transients dominate.
+  List<double> envelope() {
+    final raw = List<double>.filled(bins, 0.0);
+    for (int bin = 0; bin < bins; bin++) {
+      double totalSq = 0.0;
+      int totalCount = 0;
+      double peakRms = 0.0;
+      for (int s = 0; s < subWindows; s++) {
+        final o = bin * subWindows + s;
+        final c = _counts[o];
+        if (c == 0) continue;
+        totalSq += _sumSq[o];
+        totalCount += c;
+        final rms = math.sqrt(_sumSq[o] / c);
+        if (rms > peakRms) peakRms = rms;
+      }
+      if (totalCount == 0) {
+        raw[bin] = -1.0; // marker: no samples landed in this bin
+        continue;
+      }
+      final fullRms = math.sqrt(totalSq / totalCount);
+      raw[bin] = fullRms * 0.75 + peakRms * 0.25;
+    }
+
+    // Bins with no samples (very short tracks) borrow the previous value so
+    // they don't show up as false gaps. Real silence (0.0) is kept as is.
+    for (int bin = 0; bin < bins; bin++) {
+      if (raw[bin] < 0) raw[bin] = bin > 0 ? raw[bin - 1] : 0.0;
+    }
+    return raw;
   }
 }
