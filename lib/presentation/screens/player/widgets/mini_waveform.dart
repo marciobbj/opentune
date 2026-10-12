@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../domain/entities/section.dart';
+import 'waveform_bars.dart';
 
 class MiniWaveform extends StatelessWidget {
   final List<double> waveformData;
@@ -134,28 +135,30 @@ class _MiniWaveformPainter extends CustomPainter {
     }
 
     // Draw mini waveform bars
-    final barWidth = size.width / waveformData.length;
+    final count = barCountFor(size.width, waveformData.length, slotWidth: 2.0);
+    final bars = resampleWaveform(waveformData, count);
+    final slotWidth = bars.isEmpty ? 0.0 : size.width / bars.length;
+    final barWidth = math.max(slotWidth - 0.5, 0.75);
     final maxBarHeight = size.height * 0.38;
+    final paint = Paint()..style = PaintingStyle.fill;
 
-    for (int i = 0; i < waveformData.length; i++) {
-      final x = i * barWidth;
-      final barProgress = i / waveformData.length;
-      final amplitude = waveformData[i].clamp(0.0, 1.0);
+    for (int i = 0; i < bars.length; i++) {
+      final x = (i + 0.5) * slotWidth;
+      final barProgress = (i + 0.5) / bars.length;
+      final amplitude = bars[i].clamp(0.0, 1.0);
       final barHeight = math.max(amplitude * maxBarHeight, 0.5);
 
-      final color = barProgress <= progress
+      paint.color = barProgress <= progress
           ? primaryColor.withValues(alpha: 0.8)
           : mutedColor.withValues(alpha: 0.3);
 
-      final paint = Paint()
-        ..color = color
-        ..strokeWidth = math.max(barWidth - 0.3, 0.5)
-        ..strokeCap = StrokeCap.round;
-
-      canvas.drawLine(
-        Offset(x, midY - barHeight),
-        Offset(x, midY + barHeight),
-        paint,
+      drawWaveformBar(
+        canvas,
+        centerX: x,
+        midY: midY,
+        halfHeight: barHeight,
+        width: barWidth,
+        paint: paint,
       );
     }
 
@@ -173,6 +176,7 @@ class _MiniWaveformPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _MiniWaveformPainter old) {
     return old.progress != progress ||
+        old.waveformData != waveformData ||
         old.loopEnabled != loopEnabled ||
         old.loopStart != loopStart ||
         old.loopEnd != loopEnd;
