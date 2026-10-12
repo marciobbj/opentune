@@ -24,24 +24,22 @@ class SingleInstanceService {
       return false;
     }
 
-    _server = await ServerSocket.bind(
-      InternetAddress.loopbackIPv4,
-      _port,
-      shared: false,
-    );
+    // The file lock above is what guarantees a single instance. The socket is
+    // only used to let a second launch ask this instance to show its window,
+    // so a bind failure (e.g. sandbox restrictions, port in use) must not
+    // prevent the app from starting.
     try {
+      _server = await ServerSocket.bind(
+        InternetAddress.loopbackIPv4,
+        _port,
+        shared: false,
+      );
       _server!.listen(_handleClient);
-      return true;
     } catch (_) {
       await _server?.close();
       _server = null;
-      try {
-        await _lockHandle?.unlock();
-      } catch (_) {}
-      await _lockHandle?.close();
-      _lockHandle = null;
-      return false;
     }
+    return true;
   }
 
   void setOnShowRequested(Future<void> Function() handler) {

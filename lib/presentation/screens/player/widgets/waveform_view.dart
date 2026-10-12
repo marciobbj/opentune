@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../domain/entities/section.dart';
+import 'waveform_bars.dart';
 
 // ── Drag state for section handle dragging ──
 class _SectionDragState {
@@ -406,13 +407,20 @@ class WaveformPainter extends CustomPainter {
   }
 
   void _drawWaveform(Canvas canvas, Size size, double midY) {
-    final barWidth = size.width / waveformData.length;
-    final maxBarHeight = size.height * 0.42;
+    final count = barCountFor(size.width, waveformData.length);
+    final bars = resampleWaveform(waveformData, count);
+    if (bars.isEmpty) return;
 
-    for (int i = 0; i < waveformData.length; i++) {
-      final x = i * barWidth;
-      final barProgress = i / waveformData.length;
-      final amplitude = waveformData[i].clamp(0.0, 1.0);
+    final slotWidth = size.width / bars.length;
+    final barWidth = math.max(slotWidth - 0.8, 1.0);
+    final maxBarHeight = size.height * 0.42;
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    for (int i = 0; i < bars.length; i++) {
+      // Center each bar in its time slot so it lines up with the cursor.
+      final x = (i + 0.5) * slotWidth;
+      final barProgress = (i + 0.5) / bars.length;
+      final amplitude = bars[i].clamp(0.0, 1.0);
       final barHeight = math.max(amplitude * maxBarHeight, 1.5);
 
       Color color;
@@ -429,16 +437,14 @@ class WaveformPainter extends CustomPainter {
         color = Colors.white.withValues(alpha: 0.25);
       }
 
-      final paint = Paint()
-        ..color = color
-        ..strokeWidth = math.max(barWidth - 0.8, 1.0)
-        ..strokeCap = StrokeCap.round
-        ..style = PaintingStyle.stroke;
-
-      canvas.drawLine(
-        Offset(x, midY - barHeight),
-        Offset(x, midY + barHeight),
-        paint,
+      paint.color = color;
+      drawWaveformBar(
+        canvas,
+        centerX: x,
+        midY: midY,
+        halfHeight: barHeight,
+        width: barWidth,
+        paint: paint,
       );
     }
   }
