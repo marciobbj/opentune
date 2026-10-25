@@ -10,6 +10,7 @@ import '../library/library_screen.dart';
 import '../settings/settings_screen.dart';
 import '../../providers/navigation_provider.dart';
 import '../../providers/player_provider.dart';
+import '../../providers/update_provider.dart';
 import '../../widgets/app_title_bar.dart';
 import '../../widgets/ffmpeg_download_dialog.dart';
 
@@ -113,6 +114,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final currentIndex = ref.watch(navigationProvider);
+    final isUpdateAvailable = ref.watch(
+      updateProvider.select((s) => s.isUpdateAvailable),
+    );
 
     Widget content = Scaffold(
       backgroundColor: context.colors.bgDarkest,
@@ -169,13 +173,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               label: 'Player',
             ),
             NavigationDestination(
-              icon: Icon(
-                Icons.settings_outlined,
-                color: context.colors.textMuted,
+              icon: Badge(
+                isLabelVisible: isUpdateAvailable,
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                child: Icon(
+                  Icons.settings_outlined,
+                  color: context.colors.textMuted,
+                ),
               ),
-              selectedIcon: Icon(
-                Icons.settings_rounded,
-                color: Theme.of(context).colorScheme.primary,
+              selectedIcon: Badge(
+                isLabelVisible: isUpdateAvailable,
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                child: Icon(
+                  Icons.settings_rounded,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               ),
               label: 'Settings',
             ),

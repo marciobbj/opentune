@@ -4,7 +4,20 @@
 
 #define MyAppName "OpenTune"
 #ifndef MyAppVersion
-  #define MyAppVersion "0.7.1"
+  ; Read version directly from ..\..\pubspec.yaml when not provided via /DMyAppVersion
+  #define ReadPubspecLine(int Handle) \
+    FileEof(Handle) ? "" : ( \
+      Local[0] = Trim(FileRead(Handle)), \
+      Pos("version:", Local[0]) == 1 \
+        ? Trim(Copy(Local[0], 9, MaxInt)) \
+        : ReadPubspecLine(Handle) \
+    )
+  #define GetPubspecVersion() \
+    Local[0] = FileOpen(SourcePath + "\..\..\pubspec.yaml"), \
+    Local[1] = ReadPubspecLine(Local[0]), \
+    FileClose(Local[0]), \
+    Local[1]
+  #define MyAppVersion GetPubspecVersion()
 #endif
 #define MyAppPublisher "OpenTune"
 #define MyAppURL "https://github.com/marciobbj/opentune"

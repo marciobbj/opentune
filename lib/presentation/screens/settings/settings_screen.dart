@@ -1,9 +1,13 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/cache_service.dart';
+import '../../../core/utils/update_service.dart';
 import '../../providers/settings_provider.dart';
+import '../../providers/update_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -389,9 +393,203 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     : null,
               ),
             ),
+            const SizedBox(height: 32),
+            Text(
+              'About',
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 16),
+            _buildAboutUpdateCard(context),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildAboutUpdateCard(BuildContext context) {
+    final updateState = ref.watch(updateProvider);
+    final result = updateState.result;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    String subtitleText;
+    Color? subtitleColor;
+    switch (result.status) {
+      case UpdateStatus.checking:
+        subtitleText = 'Checking for updates...';
+        break;
+      case UpdateStatus.upToDate:
+        subtitleText = 'Up to date';
+        break;
+      case UpdateStatus.updateAvailable:
+        subtitleText = 'New release v${result.latestVersion} available';
+        subtitleColor = primaryColor;
+        break;
+      case UpdateStatus.offlineOrUnavailable:
+        subtitleText = 'Current installed version';
+        break;
+    }
+
+    return Card(
+      color: Theme.of(context).cardTheme.color,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: result.isUpdateAvailable
+              ? primaryColor.withValues(alpha: 0.5)
+              : Theme.of(context).colorScheme.surfaceContainerHighest,
+          width: result.isUpdateAvailable ? 1.0 : 0.5,
+        ),
+      ),
+      child: Column(
+        children: [
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 8,
+            ),
+            leading: Icon(
+              result.isUpdateAvailable
+                  ? Icons.system_update_alt_rounded
+                  : Icons.info_outline_rounded,
+              color: result.isUpdateAvailable
+                  ? primaryColor
+                  : Theme.of(context).iconTheme.color,
+            ),
+            title: Text(
+              result.currentVersion.isNotEmpty
+                  ? 'OpenTune v${result.currentVersion}'
+                  : 'OpenTune',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(
+              subtitleText,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: subtitleColor,
+                fontWeight: result.isUpdateAvailable ? FontWeight.w600 : null,
+              ),
+            ),
+            trailing: _buildUpdateTrailing(context, updateState),
+          ),
+          if (updateState.isDownloading)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  LinearProgressIndicator(
+                    value: updateState.downloadProgress > 0
+                        ? updateState.downloadProgress
+                        : null,
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    color: primaryColor,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    updateState.downloadProgress > 0
+                        ? 'Downloading update... ${(updateState.downloadProgress * 100).toStringAsFixed(0)}%'
+                        : 'Downloading update...',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUpdateTrailing(BuildContext context, UpdateState updateState) {
+    final result = updateState.result;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    if (updateState.isChecking || updateState.isDownloading) {
+      return SizedBox(
+        width: 22,
+        height: 22,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          color: primaryColor,
+        ),
+      );
+    }
+
+    if (result.isUpdateAvailable) {
+      final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+      if (isMobile) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: primaryColor.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: primaryColor.withValues(alpha: 0.4)),
+          ),
+          child: Text(
+            'v${result.latestVersion} available',
+            style: TextStyle(
+              color: primaryColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        );
+      }
+
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            tooltip: 'View release on GitHub',
+            icon: Icon(
+              Icons.open_in_new_rounded,
+              size: 20,
+              color: Theme.of(context).iconTheme.color,
+            ),
+            onPressed: () => ref.read(updateProvider.notifier).openReleasePage(),
+          ),
+          const SizedBox(width: 4),
+          ElevatedButton.icon(
+            onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              final ok = await ref.read(updateProvider.notifier).startUpdate();
+              if (mounted && ok) {
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Update installer opened! Follow the installer steps to update OpenTune.',
+                    ),
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.download_rounded, size: 18),
+            label: Text(
+              'Update (v${result.latestVersion})',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: context.colors.bgDarkest,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return IconButton(
+      tooltip: 'Check for updates',
+      icon: Icon(
+        Icons.refresh_rounded,
+        color: Theme.of(context).iconTheme.color,
+      ),
+      onPressed: () => ref.read(updateProvider.notifier).checkForUpdates(),
     );
   }
 
