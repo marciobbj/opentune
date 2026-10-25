@@ -70,22 +70,29 @@ jobs:
               export PATH="$FLUTTER_ROOT/bin:$PATH"
               flutter build apk --release
               flutter build linux --release
-              zip -rj linux-release.zip build/linux/x64/release/bundle/
-            artifacts: "build/app/outputs/flutter-apk/*.apk,linux-release.zip"
+              (cd build/linux/x64/release/bundle && zip -r "$GITHUB_WORKSPACE/OpenTune-Linux-Portable.zip" .)
+            artifacts: "build/app/outputs/flutter-apk/*.apk,OpenTune-Linux-Portable.zip"
           
           - target: windows
             os: windows-latest
             build_cmd: |
               flutter build windows --release
-              powershell Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath windows-release.zip -Force
-            artifacts: "windows-release.zip"
+              $version = (Select-String -Path pubspec.yaml -Pattern '^version:\s*(\S+)').Matches.Groups[1].Value
+              $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+              if (-not (Test-Path $iscc)) {
+                choco install innosetup -y --no-progress
+              }
+              & $iscc "/DMyAppVersion=$version" "windows\installer\opentune.iss"
+              Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath OpenTune-Windows-Portable.zip -Force
+            artifacts: "build/windows/installer/OpenTune-Windows-Setup.exe,OpenTune-Windows-Portable.zip"
 
           - target: macos
             os: macos-latest
             build_cmd: |
               flutter build macos --release
-              zip -r macos-release.zip build/macos/Build/Products/Release/*.app
-            artifacts: "macos-release.zip"
+              bash scripts/build_macos_dmg.sh OpenTune-macOS.dmg
+              ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Release/OpenTune.app OpenTune-macOS-Portable.zip
+            artifacts: "OpenTune-macOS.dmg,OpenTune-macOS-Portable.zip"
 
     steps:
       - uses: actions/checkout@v4

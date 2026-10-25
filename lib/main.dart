@@ -18,6 +18,20 @@ void main() async {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
 
+    // Configure a writable Application Support directory for SQLite on desktop.
+    // By default, sqflite_common_ffi uses a relative '.dart_tool/...' path based
+    // on Directory.current, which fails when the installed app is launched from
+    // '/Applications' on macOS (cwd = '/') or 'C:\Program Files' on Windows.
+    try {
+      final appSupportDir = await getApplicationSupportDirectory();
+      if (!await appSupportDir.exists()) {
+        await appSupportDir.create(recursive: true);
+      }
+      await databaseFactory.setDatabasesPath(appSupportDir.path);
+    } catch (e) {
+      debugPrint('Failed to configure desktop databases path: $e');
+    }
+
     // Ensure cache and temp directories exist for MPV (fixes file cache errors and segfaults)
     try {
       final cacheDir = await getApplicationCacheDirectory();
@@ -25,9 +39,6 @@ void main() async {
       if (!await mpvCacheDir.exists()) {
         await mpvCacheDir.create(recursive: true);
       }
-
-      // Set TMPDIR to the app's cache directory so MPV has a reliable place for lavf cache
-      Platform.environment['TMPDIR'] = mpvCacheDir.path;
     } catch (_) {
       // Ignore directory creation failures
     }

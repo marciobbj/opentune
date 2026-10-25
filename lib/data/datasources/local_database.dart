@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../../domain/entities/track.dart';
@@ -19,7 +22,15 @@ class LocalDatabase {
   }
 
   static Future<Database> _initDatabase() async {
-    final dbPath = await getDatabasesPath();
+    String dbPath;
+    if (!kIsWeb && (Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
+      final appSupportDir = await getApplicationSupportDirectory();
+      await appSupportDir.create(recursive: true);
+      dbPath = appSupportDir.path;
+    } else {
+      dbPath = await getDatabasesPath();
+      await Directory(dbPath).create(recursive: true);
+    }
     final path = join(dbPath, _dbName);
 
     return openDatabase(

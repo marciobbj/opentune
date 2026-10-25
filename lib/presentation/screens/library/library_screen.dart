@@ -127,50 +127,57 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
-    final playlists = await LocalDatabase.getAllPlaylists();
-    final rawTracks = await LocalDatabase.getAllTracks();
+    try {
+      final playlists = await LocalDatabase.getAllPlaylists();
+      final rawTracks = await LocalDatabase.getAllTracks();
 
-    final validTracks = <Track>[];
-    for (final track in rawTracks) {
-      if (File(track.filePath).existsSync()) {
-        validTracks.add(track);
-      } else if (track.bookmarkData != null) {
-        final resolvedPath = await BookmarkService.resolveBookmark(
-          track.bookmarkData!,
-          onStaleBookmark: (newData) async {
-            await LocalDatabase.updateTrack(
-              track.copyWith(bookmarkData: newData),
-            );
-          },
-        );
-        if (resolvedPath != null && File(resolvedPath).existsSync()) {
-          // Update filePath if it changed after bookmark resolution
-          if (resolvedPath != track.filePath) {
-            final updatedTrack = track.copyWith(filePath: resolvedPath);
-            await LocalDatabase.updateTrack(updatedTrack);
-            validTracks.add(updatedTrack);
+      final validTracks = <Track>[];
+      for (final track in rawTracks) {
+        if (File(track.filePath).existsSync()) {
+          validTracks.add(track);
+        } else if (track.bookmarkData != null) {
+          final resolvedPath = await BookmarkService.resolveBookmark(
+            track.bookmarkData!,
+            onStaleBookmark: (newData) async {
+              await LocalDatabase.updateTrack(
+                track.copyWith(bookmarkData: newData),
+              );
+            },
+          );
+          if (resolvedPath != null && File(resolvedPath).existsSync()) {
+            // Update filePath if it changed after bookmark resolution
+            if (resolvedPath != track.filePath) {
+              final updatedTrack = track.copyWith(filePath: resolvedPath);
+              await LocalDatabase.updateTrack(updatedTrack);
+              validTracks.add(updatedTrack);
+            } else {
+              validTracks.add(track);
+            }
           } else {
-            validTracks.add(track);
+            // Bookmark resolution failed — file is truly gone
+            await LocalDatabase.deleteTrack(track.id!);
           }
         } else {
-          // Bookmark resolution failed — file is truly gone
+          // No bookmark and file not accessible — remove from library
           await LocalDatabase.deleteTrack(track.id!);
         }
-      } else {
-        // No bookmark and file not accessible — remove from library
-        await LocalDatabase.deleteTrack(track.id!);
       }
-    }
 
-    if (mounted) {
-      setState(() {
-        _playlists = playlists;
-        _allTracks = validTracks;
-        _isLoading = false;
-      });
-      // Playlist membership may have changed (e.g. tracks added to Favorites
-      // via "Add to playlist" or removed tracks), so resync the stars.
-      await ref.read(favoritesProvider.notifier).refresh();
+      if (mounted) {
+        setState(() {
+          _playlists = playlists;
+          _allTracks = validTracks;
+          _isLoading = false;
+        });
+        // Playlist membership may have changed (e.g. tracks added to Favorites
+        // via "Add to playlist" or removed tracks), so resync the stars.
+        await ref.read(favoritesProvider.notifier).refresh();
+      }
+    } catch (e, st) {
+      debugPrint('Error loading library data: $e\n$st');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
