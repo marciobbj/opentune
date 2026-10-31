@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/bookmark_service.dart';
 import '../../../data/datasources/local_database.dart';
 import '../../../domain/entities/playlist.dart';
+import '../../../domain/entities/playlist_sort.dart';
 import '../../../domain/entities/track.dart';
 import '../../providers/player_provider.dart';
 import '../../providers/navigation_provider.dart';
@@ -25,7 +27,15 @@ class PlaylistDetailScreen extends ConsumerStatefulWidget {
 
 class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
   late Playlist _playlist;
+
+  /// Tracks in the playlist's manual (custom / drag & drop) order.
+  List<Track> _manualTracks = [];
+
+  /// Tracks as displayed (and queued), i.e. [_manualTracks] after sorting.
   List<Track> _tracks = [];
+
+  /// trackId -> rank of when it was added to this playlist.
+  Map<int, int> _addedRanks = {};
   bool _isLoading = true;
 
   @override
@@ -49,15 +59,69 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
       final track = await LocalDatabase.getTrackById(trackId);
       if (track != null) tracks.add(track);
     }
+    final addedRanks = _playlist.id != null
+        ? await LocalDatabase.getPlaylistAddedRanks(_playlist.id!)
+        : <int, int>{};
     if (mounted) {
       setState(() {
-        _tracks = tracks;
+        _manualTracks = tracks;
+        _addedRanks = addedRanks;
+        _tracks = _sorted();
         _isLoading = false;
       });
       // Adding/removing tracks here changes which tracks are starred.
       if (_playlist.isFavorites) {
         await ref.read(favoritesProvider.notifier).refresh();
       }
+    }
+  }
+
+  List<Track> _sorted() => sortPlaylistTracks(
+    _manualTracks,
+    mode: _playlist.sortMode,
+    ascending: _playlist.sortAscending,
+    shuffleSeed: _playlist.shuffleSeed,
+    addedRank: _addedRanks,
+  );
+
+  static int _newShuffleSeed() => Random().nextInt(1 << 31);
+
+  /// Selects a sort mode. Tapping the active mode toggles its direction, or
+  /// reshuffles when the mode is random.
+  Future<void> _selectSortMode(PlaylistSortMode mode) async {
+    var ascending = _playlist.sortAscending;
+    var seed = _playlist.shuffleSeed;
+    if (mode == _playlist.sortMode) {
+      if (mode.supportsDirection) ascending = !ascending;
+      if (mode == PlaylistSortMode.random) seed = _newShuffleSeed();
+      if (mode == PlaylistSortMode.custom) return;
+    } else {
+      ascending = mode.defaultAscending;
+      if (mode == PlaylistSortMode.random) seed = _newShuffleSeed();
+    }
+    await _applySort(mode: mode, ascending: ascending, shuffleSeed: seed);
+  }
+
+  Future<void> _applySort({
+    required PlaylistSortMode mode,
+    required bool ascending,
+    required int shuffleSeed,
+  }) async {
+    setState(() {
+      _playlist = _playlist.copyWith(
+        sortMode: mode,
+        sortAscending: ascending,
+        shuffleSeed: shuffleSeed,
+      );
+      _tracks = _sorted();
+    });
+    if (_playlist.id != null) {
+      await LocalDatabase.updatePlaylistSort(
+        _playlist.id!,
+        mode: mode,
+        ascending: ascending,
+        shuffleSeed: shuffleSeed,
+      );
     }
   }
 
@@ -251,6 +315,15 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
               ),
             ),
           ),
+
+          // Sort controls
+          if (_manualTracks.length > 1)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                child: _buildSortControls(),
+              ),
+            ),
 
           // Track list
           if (_isLoading)
@@ -768,13 +841,154 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
     }
   }
 
-  void _onReorder(int oldIndex, int newIndex) {
+  Future<void> _onReorder(int oldIndex, int newIndex) async {
+    final wasSorted = _playlist.sortMode != PlaylistSortMode.custom;
     setState(() {
       if (newIndex > oldIndex) newIndex--;
-      final track = _tracks.removeAt(oldIndex);
-      _tracks.insert(newIndex, track);
+      // Dragging always edits what the user sees. If a sort is active, the
+      // visible order becomes the new manual order.
+      final reordered = List<Track>.from(_tracks);
+      final track = reordered.removeAt(oldIndex);
+      reordered.insert(newIndex, track);
+      _manualTracks = reordered;
+      _tracks = List<Track>.from(reordered);
+      if (wasSorted) {
+        _playlist = _playlist.copyWith(sortMode: PlaylistSortMode.custom);
+      }
     });
-    // TODO: persist reorder to DB
+
+    if (_playlist.id == null) return;
+    await LocalDatabase.reorderPlaylistTracks(
+      _playlist.id!,
+      _manualTracks.map((t) => t.id!).toList(),
+    );
+    if (wasSorted) {
+      await LocalDatabase.updatePlaylistSort(
+        _playlist.id!,
+        mode: PlaylistSortMode.custom,
+        ascending: _playlist.sortAscending,
+        shuffleSeed: _playlist.shuffleSeed,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Switched to custom order'),
+            backgroundColor: context.colors.bgCard,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  IconData _sortModeIcon(PlaylistSortMode mode) => switch (mode) {
+    PlaylistSortMode.custom => Icons.drag_indicator_rounded,
+    PlaylistSortMode.title => Icons.sort_by_alpha_rounded,
+    PlaylistSortMode.artist => Icons.person_rounded,
+    PlaylistSortMode.album => Icons.album_rounded,
+    PlaylistSortMode.dateAdded => Icons.playlist_add_rounded,
+    PlaylistSortMode.dateImported => Icons.download_rounded,
+    PlaylistSortMode.dateModified => Icons.edit_calendar_rounded,
+    PlaylistSortMode.duration => Icons.timer_outlined,
+    PlaylistSortMode.bpm => Icons.speed_rounded,
+    PlaylistSortMode.random => Icons.shuffle_rounded,
+  };
+
+  Widget _buildSortControls() {
+    final primary = Theme.of(context).colorScheme.primary;
+    final current = _playlist.sortMode;
+
+    return Row(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: PlaylistSortMode.values.map((mode) {
+                final selected = current == mode;
+                final fg = selected
+                    ? context.colors.bgDarkest
+                    : context.colors.textSecondary;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ChoiceChip(
+                    selected: selected,
+                    avatar: Icon(_sortModeIcon(mode), size: 14, color: fg),
+                    label: Text(
+                      mode.label,
+                      style: TextStyle(
+                        color: fg,
+                        fontSize: 12,
+                        fontWeight: selected
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                      ),
+                    ),
+                    tooltip: switch (mode) {
+                      PlaylistSortMode.custom =>
+                        'Manual order (drag to reorder)',
+                      PlaylistSortMode.dateAdded =>
+                        'Date added to this playlist',
+                      PlaylistSortMode.dateImported =>
+                        'Date imported to the library',
+                      PlaylistSortMode.dateModified =>
+                        'Date metadata was last edited',
+                      PlaylistSortMode.random =>
+                        selected ? 'Tap to reshuffle' : 'Random order',
+                      _ => null,
+                    },
+                    selectedColor: primary,
+                    backgroundColor: context.colors.bgDark,
+                    side: BorderSide(
+                      color: selected
+                          ? primary
+                          : context.colors.surfaceBorder.withValues(alpha: 0.3),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    showCheckmark: false,
+                    visualDensity: VisualDensity.compact,
+                    onSelected: (_) => _selectSortMode(mode),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+        if (current.supportsDirection ||
+            current == PlaylistSortMode.random) ...[
+          const SizedBox(width: 4),
+          Tooltip(
+            message: current == PlaylistSortMode.random
+                ? 'Reshuffle'
+                : (_playlist.sortAscending ? 'Ascending' : 'Descending'),
+            child: GestureDetector(
+              onTap: () => _selectSortMode(current),
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: context.colors.bgDark,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: context.colors.surfaceBorder.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Icon(
+                  current == PlaylistSortMode.random
+                      ? Icons.refresh_rounded
+                      : (_playlist.sortAscending
+                            ? Icons.arrow_upward_rounded
+                            : Icons.arrow_downward_rounded),
+                  color: context.colors.textSecondary,
+                  size: 18,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
   }
 
   void _showAddExistingTracksDialog() async {

@@ -7,11 +7,12 @@ import '../../domain/entities/track.dart';
 import '../../domain/entities/section.dart';
 import '../../domain/entities/track_settings.dart';
 import '../../domain/entities/playlist.dart';
+import '../../domain/entities/playlist_sort.dart';
 
 class LocalDatabase {
   static Database? _database;
   static const String _dbName = 'opentune.db';
-  static const int _dbVersion = 4;
+  static const int _dbVersion = 5;
 
   /// Display name of the built-in favorites playlist.
   static const String favoritesPlaylistName = 'Favorites';
@@ -115,6 +116,9 @@ class LocalDatabase {
         name TEXT NOT NULL,
         description TEXT DEFAULT '',
         isFavorites INTEGER DEFAULT 0,
+        sortMode TEXT DEFAULT 'custom',
+        sortAscending INTEGER DEFAULT 1,
+        shuffleSeed INTEGER DEFAULT 0,
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL
       )
@@ -146,6 +150,17 @@ class LocalDatabase {
     if (oldVersion < 4) {
       await db.execute(
         'ALTER TABLE playlists ADD COLUMN isFavorites INTEGER DEFAULT 0',
+      );
+    }
+    if (oldVersion < 5) {
+      await db.execute(
+        "ALTER TABLE playlists ADD COLUMN sortMode TEXT DEFAULT 'custom'",
+      );
+      await db.execute(
+        'ALTER TABLE playlists ADD COLUMN sortAscending INTEGER DEFAULT 1',
+      );
+      await db.execute(
+        'ALTER TABLE playlists ADD COLUMN shuffleSeed INTEGER DEFAULT 0',
       );
     }
   }
@@ -328,6 +343,59 @@ class LocalDatabase {
       where: 'playlistId = ? AND trackId = ?',
       whereArgs: [playlistId, trackId],
     );
+  }
+
+  /// Persists the sort settings of a playlist. Doesn't touch `updatedAt`, so
+  /// changing the view order doesn't reorder the playlist list.
+  static Future<void> updatePlaylistSort(
+    int playlistId, {
+    required PlaylistSortMode mode,
+    required bool ascending,
+    required int shuffleSeed,
+  }) async {
+    final db = await database;
+    await db.update(
+      'playlists',
+      {
+        'sortMode': mode.key,
+        'sortAscending': ascending ? 1 : 0,
+        'shuffleSeed': shuffleSeed,
+      },
+      where: 'id = ?',
+      whereArgs: [playlistId],
+    );
+  }
+
+  /// Persists the manual (custom) order of a playlist.
+  static Future<void> reorderPlaylistTracks(
+    int playlistId,
+    List<int> orderedTrackIds,
+  ) async {
+    final db = await database;
+    final batch = db.batch();
+    for (var i = 0; i < orderedTrackIds.length; i++) {
+      batch.update(
+        'playlist_tracks',
+        {'orderIndex': i},
+        where: 'playlistId = ? AND trackId = ?',
+        whereArgs: [playlistId, orderedTrackIds[i]],
+      );
+    }
+    await batch.commit(noResult: true);
+  }
+
+  /// Maps each track id of a playlist to a value that grows with the time it
+  /// was added (the auto-increment row id of `playlist_tracks`, which is not
+  /// affected by manual reordering).
+  static Future<Map<int, int>> getPlaylistAddedRanks(int playlistId) async {
+    final db = await database;
+    final rows = await db.query(
+      'playlist_tracks',
+      columns: ['id', 'trackId'],
+      where: 'playlistId = ?',
+      whereArgs: [playlistId],
+    );
+    return {for (final r in rows) r['trackId'] as int: r['id'] as int};
   }
 
   static Future<void> deletePlaylist(int id) async {
