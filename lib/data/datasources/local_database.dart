@@ -24,10 +24,12 @@ class LocalDatabase {
 
   static Future<Database> _initDatabase() async {
     String dbPath;
-    if (!kIsWeb && (Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
+    if (!kIsWeb &&
+        (Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
       final appSupportDir = await getApplicationSupportDirectory();
       await appSupportDir.create(recursive: true);
       dbPath = appSupportDir.path;
+      await _migrateLegacyDesktopDatabase(join(dbPath, _dbName));
     } else {
       dbPath = await getDatabasesPath();
       await Directory(dbPath).create(recursive: true);
@@ -44,6 +46,87 @@ class LocalDatabase {
       onUpgrade: _onUpgrade,
       onOpen: _ensureFavoritesPlaylist,
     );
+  }
+
+  /// Migrates the database from the legacy sqflite_common_ffi location
+  /// (`.dart_tool/sqflite_common_ffi/databases/opentune.db`, used up to v0.7.1)
+  /// to the new Application Support directory, keeping the legacy file intact
+  /// as a backup.
+  ///
+  /// Also handles the case where v0.8.0 was already opened once and created an
+  /// empty database at [targetPath] while the user's populated database is
+  /// still in the legacy path.
+  static Future<void> _migrateLegacyDesktopDatabase(String targetPath) async {
+    try {
+      final candidateDirs = <String>{
+        Directory.current.path,
+        if (Platform.environment['HOME'] case final home? when home.isNotEmpty)
+          home,
+        if (Platform.environment['USERPROFILE'] case final profile?
+            when profile.isNotEmpty)
+          profile,
+      };
+
+      File? legacyFile;
+      for (final baseDir in candidateDirs) {
+        final candidate = File(
+          join(
+            baseDir,
+            '.dart_tool',
+            'sqflite_common_ffi',
+            'databases',
+            _dbName,
+          ),
+        );
+        if (await candidate.exists() && candidate.path != targetPath) {
+          legacyFile = candidate;
+          break;
+        }
+      }
+
+      if (legacyFile == null) return;
+
+      final targetFile = File(targetPath);
+      if (await targetFile.exists()) {
+        // Check if the current target DB already has user tracks; if it's empty
+        // and the legacy DB has tracks, migrate over the empty DB.
+        final targetHasData = await _databaseHasTracks(targetPath);
+        if (targetHasData) return;
+
+        final legacyHasData = await _databaseHasTracks(legacyFile.path);
+        if (!legacyHasData) return;
+      }
+
+      // Copy main database file (keeping legacy file untouched)
+      await legacyFile.copy(targetPath);
+
+      // Copy WAL / SHM sidecar files if present so uncommitted WAL frames aren't lost
+      for (final suffix in ['-wal', '-shm']) {
+        final legacySidecar = File('${legacyFile.path}$suffix');
+        final targetSidecar = File('$targetPath$suffix');
+        if (await legacySidecar.exists()) {
+          await legacySidecar.copy(targetSidecar.path);
+        } else if (await targetSidecar.exists()) {
+          await targetSidecar.delete();
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to migrate legacy database: $e');
+    }
+  }
+
+  static Future<bool> _databaseHasTracks(String dbFilePath) async {
+    Database? db;
+    try {
+      db = await openDatabase(dbFilePath, readOnly: true);
+      final result = await db.rawQuery('SELECT COUNT(*) AS cnt FROM tracks');
+      final count = (result.firstOrNull?['cnt'] as int?) ?? 0;
+      return count > 0;
+    } catch (_) {
+      return false;
+    } finally {
+      await db?.close();
+    }
   }
 
   /// Makes sure the built-in Favorites playlist exists.
