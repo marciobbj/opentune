@@ -11,26 +11,46 @@ import '../../domain/entities/playlist_sort.dart';
 
 class LocalDatabase {
   static Database? _database;
+  static Future<Database>? _initFuture;
   static const String _dbName = 'opentune.db';
   static const int _dbVersion = 5;
 
   /// Display name of the built-in favorites playlist.
   static const String favoritesPlaylistName = 'Favorites';
 
-  static Future<Database> get database async {
-    _database ??= await _initDatabase();
-    return _database!;
+  static Future<Database> get database {
+    final existing = _database;
+    if (existing != null && existing.isOpen) {
+      return Future.value(existing);
+    }
+    _database = null;
+    return _initFuture ??= _initDatabase().then(
+      (db) {
+        _database = db;
+        return db;
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        _initFuture = null;
+        _database = null;
+        Error.throwWithStackTrace(error, stackTrace);
+      },
+    );
   }
 
   static Future<Database> _initDatabase() async {
-    String dbPath;
+    String? dbPath;
     if (!kIsWeb &&
         (Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
-      final appSupportDir = await getApplicationSupportDirectory();
-      await appSupportDir.create(recursive: true);
-      dbPath = appSupportDir.path;
-      await _migrateLegacyDesktopDatabase(join(dbPath, _dbName));
-    } else {
+      try {
+        final appSupportDir = await getApplicationSupportDirectory();
+        await appSupportDir.create(recursive: true);
+        dbPath = appSupportDir.path;
+        await _migrateLegacyDesktopDatabase(join(dbPath, _dbName));
+      } catch (_) {
+        // Fallback to getDatabasesPath() when platform channels are unavailable (e.g. unit tests)
+      }
+    }
+    if (dbPath == null) {
       dbPath = await getDatabasesPath();
       await Directory(dbPath).create(recursive: true);
     }
@@ -118,7 +138,11 @@ class LocalDatabase {
   static Future<bool> _databaseHasTracks(String dbFilePath) async {
     Database? db;
     try {
-      db = await openDatabase(dbFilePath, readOnly: true);
+      db = await openDatabase(
+        dbFilePath,
+        readOnly: true,
+        singleInstance: false,
+      );
       final result = await db.rawQuery('SELECT COUNT(*) AS cnt FROM tracks');
       final count = (result.firstOrNull?['cnt'] as int?) ?? 0;
       return count > 0;

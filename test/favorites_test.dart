@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:opentune/domain/entities/playlist.dart';
@@ -7,9 +8,19 @@ import 'package:opentune/presentation/providers/favorites_provider.dart';
 import 'package:opentune/presentation/providers/player_provider.dart';
 
 void main() {
-  setUpAll(() {
+  late Directory tempDbDir;
+
+  setUpAll(() async {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
+    tempDbDir = await Directory.systemTemp.createTemp('opentune_test_db_');
+    await databaseFactory.setDatabasesPath(tempDbDir.path);
+  });
+
+  tearDownAll(() async {
+    if (await tempDbDir.exists()) {
+      await tempDbDir.delete(recursive: true);
+    }
   });
 
   group('Playlist model', () {
@@ -40,11 +51,19 @@ void main() {
 
   group('LocalDatabase Favorites Integration', () {
     test('Initializes favorites playlist and manages starred tracks', () async {
-      // 1. Ensure database initializes and Favorites playlist exists
-      final favId = await LocalDatabase.getFavoritesPlaylistId();
-      expect(favId, isPositive);
+      // 1. Ensure concurrent initial calls (like startup of LibraryScreen,
+      // FavoritesNotifier, and PlayerNotifier) share the same initialization
+      // and do not close or corrupt each other's database instance.
+      final results = await Future.wait([
+        LocalDatabase.getAllPlaylists(),
+        LocalDatabase.getAllTracks(),
+        LocalDatabase.getFavoriteTrackIds(),
+        LocalDatabase.getFavoritesPlaylistId(),
+      ]);
 
-      final playlists = await LocalDatabase.getAllPlaylists();
+      final playlists = results[0] as List<Playlist>;
+      final favId = results[3] as int;
+      expect(favId, isPositive);
       expect(playlists.isNotEmpty, isTrue);
       expect(playlists.first.isFavorites, isTrue);
       expect(playlists.first.name, LocalDatabase.favoritesPlaylistName);
