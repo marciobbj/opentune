@@ -255,23 +255,39 @@ class UpdateService {
     return null;
   }
 
-  /// Downloads the installer asset (on macOS `.dmg` or Windows `.exe`) and opens it,
-  /// or falls back to opening the release page in the system browser.
+  /// Downloads and launches the installer asset on Windows (`.exe`), or opens
+  /// the direct asset download URL in the system browser on macOS (`.dmg`),
+  /// falling back to the release page URL when no direct asset is available.
+  ///
+  /// Note: On macOS, downloading a `.dmg` directly inside the App Sandbox
+  /// causes `Quarantine.kext` to stamp the file with `QTN_FLAG_SANDBOX`
+  /// (`0x0086` - "created without user consent"), which propagates to the
+  /// copied `.app` and blocks `posix_spawn` with `EPERM (-10810)`. Delegating
+  /// the `.dmg` download to the system browser applies standard user-approved
+  /// quarantine attributes so macOS allows launching the updated app.
   static Future<bool> downloadAndLaunchUpdate({
     required UpdateCheckResult updateInfo,
     void Function(double progress)? onProgress,
   }) async {
     final downloadUrl = updateInfo.downloadUrl;
     final assetName = updateInfo.assetName;
+
+    if (!kIsWeb && Platform.isMacOS) {
+      return openUrl(
+        downloadUrl ?? updateInfo.releaseUrl ?? defaultReleasesPageUrl,
+      );
+    }
+
     final canDirectInstall = !kIsWeb &&
-        (Platform.isMacOS || Platform.isWindows) &&
+        Platform.isWindows &&
         downloadUrl != null &&
         assetName != null &&
-        (assetName.toLowerCase().endsWith('.dmg') ||
-            assetName.toLowerCase().endsWith('.exe'));
+        assetName.toLowerCase().endsWith('.exe');
 
     if (!canDirectInstall) {
-      return openUrl(updateInfo.releaseUrl ?? defaultReleasesPageUrl);
+      return openUrl(
+        downloadUrl ?? updateInfo.releaseUrl ?? defaultReleasesPageUrl,
+      );
     }
 
     final client = HttpClient();
@@ -318,20 +334,13 @@ class UpdateService {
       }
       await tmpFile.rename(finalFile.path);
 
-      if (Platform.isMacOS) {
-        // Mounts the .dmg and opens the Drag-to-Applications Finder window
-        final result = await Process.run('open', [finalFile.path]);
-        return result.exitCode == 0;
-      } else if (Platform.isWindows) {
-        // Starts the Inno Setup wizard ("Seguinte -> Instalar -> Concluir")
-        await Process.start(
-          finalFile.path,
-          const [],
-          mode: ProcessStartMode.detached,
-        );
-        return true;
-      }
-      return false;
+      // Starts the Inno Setup wizard ("Seguinte -> Instalar -> Concluir")
+      await Process.start(
+        finalFile.path,
+        const [],
+        mode: ProcessStartMode.detached,
+      );
+      return true;
     } catch (e) {
       debugPrint('UpdateService: direct installer download failed ($e), opening browser');
       try {

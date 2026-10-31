@@ -558,9 +558,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               final ok = await ref.read(updateProvider.notifier).startUpdate();
               if (mounted && ok) {
                 messenger.showSnackBar(
-                  const SnackBar(
+                  SnackBar(
                     content: Text(
-                      'Update installer opened! Follow the installer steps to update OpenTune.',
+                      Platform.isMacOS
+                          ? 'Installer download started in your browser! Quit OpenTune before replacing it in Applications.'
+                          : 'Update installer opened! Follow the installer steps to update OpenTune.',
                     ),
                   ),
                 );
