@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,16 +11,26 @@ class OpenTuneApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final customPrimary = ref.watch(settingsProvider.select((state) => state.customPrimaryColor));
-    final themeMode = ref.watch(settingsProvider.select((state) => state.themeMode));
-    
+    final customPrimary = ref.watch(
+      settingsProvider.select((state) => state.customPrimaryColor),
+    );
+    final themeMode = ref.watch(
+      settingsProvider.select((state) => state.themeMode),
+    );
+
     // Force dark system UI overlay for now
     SystemChrome.setSystemUIOverlayStyle(
       SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: themeMode == ThemeMode.light ? Brightness.dark : Brightness.light,
-        systemNavigationBarColor: themeMode == ThemeMode.light ? const Color(0xFFF8FAFC) : const Color(0xFF0A0E17),
-        systemNavigationBarIconBrightness: themeMode == ThemeMode.light ? Brightness.dark : Brightness.light,
+        statusBarIconBrightness: themeMode == ThemeMode.light
+            ? Brightness.dark
+            : Brightness.light,
+        systemNavigationBarColor: themeMode == ThemeMode.light
+            ? const Color(0xFFF8FAFC)
+            : const Color(0xFF0A0E17),
+        systemNavigationBarIconBrightness: themeMode == ThemeMode.light
+            ? Brightness.dark
+            : Brightness.light,
       ),
     );
 
@@ -29,6 +40,15 @@ class OpenTuneApp extends ConsumerWidget {
       themeMode: themeMode,
       theme: AppTheme.lightTheme(customPrimary: customPrimary),
       darkTheme: AppTheme.darkTheme(customPrimary: customPrimary),
+      scrollBehavior: const MaterialScrollBehavior().copyWith(
+        dragDevices: {
+          PointerDeviceKind.touch,
+          PointerDeviceKind.mouse,
+          PointerDeviceKind.stylus,
+          PointerDeviceKind.trackpad,
+          PointerDeviceKind.unknown,
+        },
+      ),
       home: const HomeScreen(),
     );
   }

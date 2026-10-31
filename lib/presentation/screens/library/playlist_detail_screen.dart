@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
@@ -37,12 +38,19 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
   /// trackId -> rank of when it was added to this playlist.
   Map<int, int> _addedRanks = {};
   bool _isLoading = true;
+  final ScrollController _sortScrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _playlist = widget.playlist;
     _loadTracks();
+  }
+
+  @override
+  void dispose() {
+    _sortScrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadTracks() async {
@@ -901,58 +909,76 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
     return Row(
       children: [
         Expanded(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: PlaylistSortMode.values.map((mode) {
-                final selected = current == mode;
-                final fg = selected
-                    ? context.colors.bgDarkest
-                    : context.colors.textSecondary;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: ChoiceChip(
-                    selected: selected,
-                    avatar: Icon(_sortModeIcon(mode), size: 14, color: fg),
-                    label: Text(
-                      mode.label,
-                      style: TextStyle(
-                        color: fg,
-                        fontSize: 12,
-                        fontWeight: selected
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                      ),
-                    ),
-                    tooltip: switch (mode) {
-                      PlaylistSortMode.custom =>
-                        'Manual order (drag to reorder)',
-                      PlaylistSortMode.dateAdded =>
-                        'Date added to this playlist',
-                      PlaylistSortMode.dateImported =>
-                        'Date imported to the library',
-                      PlaylistSortMode.dateModified =>
-                        'Date metadata was last edited',
-                      PlaylistSortMode.random =>
-                        selected ? 'Tap to reshuffle' : 'Random order',
-                      _ => null,
-                    },
-                    selectedColor: primary,
-                    backgroundColor: context.colors.bgDark,
-                    side: BorderSide(
-                      color: selected
-                          ? primary
-                          : context.colors.surfaceBorder.withValues(alpha: 0.3),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    showCheckmark: false,
-                    visualDensity: VisualDensity.compact,
-                    onSelected: (_) => _selectSortMode(mode),
-                  ),
+          child: Listener(
+            onPointerSignal: (event) {
+              if (event is PointerScrollEvent &&
+                  _sortScrollController.hasClients) {
+                final delta = event.scrollDelta.dx != 0
+                    ? event.scrollDelta.dx
+                    : event.scrollDelta.dy;
+                final target = (_sortScrollController.offset + delta).clamp(
+                  0.0,
+                  _sortScrollController.position.maxScrollExtent,
                 );
-              }).toList(),
+                _sortScrollController.jumpTo(target);
+              }
+            },
+            child: SingleChildScrollView(
+              controller: _sortScrollController,
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: PlaylistSortMode.values.map((mode) {
+                  final selected = current == mode;
+                  final fg = selected
+                      ? context.colors.bgDarkest
+                      : context.colors.textSecondary;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: ChoiceChip(
+                      selected: selected,
+                      avatar: Icon(_sortModeIcon(mode), size: 14, color: fg),
+                      label: Text(
+                        mode.label,
+                        style: TextStyle(
+                          color: fg,
+                          fontSize: 12,
+                          fontWeight: selected
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                        ),
+                      ),
+                      tooltip: switch (mode) {
+                        PlaylistSortMode.custom =>
+                          'Manual order (drag to reorder)',
+                        PlaylistSortMode.dateAdded =>
+                          'Date added to this playlist',
+                        PlaylistSortMode.dateImported =>
+                          'Date imported to the library',
+                        PlaylistSortMode.dateModified =>
+                          'Date metadata was last edited',
+                        PlaylistSortMode.random =>
+                          selected ? 'Tap to reshuffle' : 'Random order',
+                        _ => null,
+                      },
+                      selectedColor: primary,
+                      backgroundColor: context.colors.bgDark,
+                      side: BorderSide(
+                        color: selected
+                            ? primary
+                            : context.colors.surfaceBorder.withValues(
+                                alpha: 0.3,
+                              ),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      showCheckmark: false,
+                      visualDensity: VisualDensity.compact,
+                      onSelected: (_) => _selectSortMode(mode),
+                    ),
+                  );
+                }).toList(),
+              ),
             ),
           ),
         ),
